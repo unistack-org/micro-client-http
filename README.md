@@ -43,6 +43,8 @@ response := new(proto.Response)
 err := client.Call(context.TODO(), request, response)
 ```
 
+Look at http_test.go for detailed use.
+
 ### Encoding
 
 Default protobuf with content-type application/proto
@@ -55,4 +57,3 @@ Json with content-type application/json
 client.NewJsonRequest("service", "/path", jsonRequest{})
 ```
 
-Look at http_test.go for detailed use.
