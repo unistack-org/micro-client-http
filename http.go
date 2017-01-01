@@ -1,3 +1,4 @@
+// Package http provides a http client
 package http
 
 import (
