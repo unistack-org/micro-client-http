@@ -37,7 +37,7 @@ client := http.NewClient()
 
 // create request/response
 request := client.NewRequest("my.service", "/foo/bar", protoRequest{})
-response := new(proto.Response)
+response := new(protoResponse)
 
 // call service
 err := client.Call(context.TODO(), request, response)
