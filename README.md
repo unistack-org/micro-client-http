@@ -41,3 +41,5 @@ response := new(proto.Response)
 // call service
 err := client.Call(context.TODO(), request, response)
 ```
+
+Look at http_test.go for detailed use.
