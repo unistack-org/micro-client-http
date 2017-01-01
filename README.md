@@ -3,6 +3,7 @@
 This plugin is a http client for go-micro.
 
 The http client wraps net/http to provide a robust go-micro client with service discovery, load balancing and streaming.
+It complies with the [go-micro.Client](https://godoc.org/github.com/micro/go-micro/client#Client) interface.
 
 ## Usage
 
