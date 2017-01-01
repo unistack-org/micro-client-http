@@ -13,7 +13,7 @@ import (
 	"github.com/micro/go-micro/client"
 	"github.com/micro/go-micro/registry"
 	"github.com/micro/go-micro/selector"
-	"github.com/micro/go-plugins/client/http/proto"
+	"github.com/micro/go-plugins/client/http/test"
 	"github.com/micro/go-plugins/registry/memory"
 
 	"golang.org/x/net/context"
