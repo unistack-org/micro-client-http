@@ -36,7 +36,7 @@ Assuming you have a http service "my.service" with path "/foo/bar"
 client := http.NewClient()
 
 // create request/response
-request := client.NewRequest("my.service", "/foo/bar", &proto.Request{})
+request := client.NewRequest("my.service", "/foo/bar", protoRequest{})
 response := new(proto.Response)
 
 // call service
