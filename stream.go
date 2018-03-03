@@ -3,6 +3,7 @@ package http
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"io/ioutil"
 	"net"
@@ -11,8 +12,6 @@ import (
 	"sync"
 
 	"github.com/micro/go-micro/client"
-
-	"golang.org/x/net/context"
 )
 
 // Implements the streamer interface

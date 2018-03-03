@@ -3,6 +3,7 @@ package http
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -15,8 +16,6 @@ import (
 	"github.com/micro/go-micro/selector"
 	"github.com/micro/go-plugins/client/http/test"
 	"github.com/micro/go-plugins/registry/memory"
-
-	"golang.org/x/net/context"
 )
 
 func TestHTTPClient(t *testing.T) {
