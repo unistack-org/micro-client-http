@@ -33,6 +33,27 @@ func init() {
 	cmd.DefaultClients["http"] = NewClient
 }
 
+func (h *httpClient) next(request client.Request, opts client.CallOptions) (selector.Next, error) {
+	// return remote address
+	if len(opts.Address) > 0 {
+		return func() (*registry.Node, error) {
+			return &registry.Node{
+				Address: opts.Address,
+			}, nil
+		}, nil
+	}
+
+	// get next nodes from the selector
+	next, err := h.opts.Selector.Select(request.Service(), opts.SelectOptions...)
+	if err != nil && err == selector.ErrNotFound {
+		return nil, errors.NotFound("go.micro.client", err.Error())
+	} else if err != nil {
+		return nil, errors.InternalServerError("go.micro.client", err.Error())
+	}
+
+	return next, nil
+}
+
 func (h *httpClient) call(ctx context.Context, address string, req client.Request, rsp interface{}, opts client.CallOptions) error {
 	header := make(http.Header)
 	if md, ok := metadata.FromContext(ctx); ok {
@@ -175,11 +196,9 @@ func (h *httpClient) Call(ctx context.Context, req client.Request, rsp interface
 	}
 
 	// get next nodes from the selector
-	next, err := h.opts.Selector.Select(req.Service(), callOpts.SelectOptions...)
-	if err != nil && err == selector.ErrNotFound {
-		return errors.NotFound("go.micro.client", err.Error())
-	} else if err != nil {
-		return errors.InternalServerError("go.micro.client", err.Error())
+	next, err := h.next(req, callOpts)
+	if err != nil {
+		return err
 	}
 
 	// check if we already have a deadline
@@ -283,11 +302,9 @@ func (h *httpClient) Stream(ctx context.Context, req client.Request, opts ...cli
 	}
 
 	// get next nodes from the selector
-	next, err := h.opts.Selector.Select(req.Service(), callOpts.SelectOptions...)
-	if err != nil && err == selector.ErrNotFound {
-		return nil, errors.NotFound("go.micro.client", err.Error())
-	} else if err != nil {
-		return nil, errors.InternalServerError("go.micro.client", err.Error())
+	next, err := h.next(req, callOpts)
+	if err != nil {
+		return nil, err
 	}
 
 	// check if we already have a deadline

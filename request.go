@@ -18,6 +18,10 @@ func newHTTPRequest(service, method string, request interface{}, contentType str
 		o(&opts)
 	}
 
+	if len(opts.ContentType) > 0 {
+		contentType = opts.ContentType
+	}
+
 	return &httpRequest{
 		service:     service,
 		method:      method,
