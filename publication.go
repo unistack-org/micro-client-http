@@ -4,28 +4,28 @@ import (
 	"github.com/micro/go-micro/client"
 )
 
-type httpPublication struct {
+type httpMessage struct {
 	topic       string
 	contentType string
-	message     interface{}
+	payload     interface{}
 }
 
-func newHTTPPublication(topic string, message interface{}, contentType string) client.Publication {
-	return &httpPublication{
-		message:     message,
+func newHTTPMessage(topic string, payload interface{}, contentType string) client.Message {
+	return &httpMessage{
+		payload:     payload,
 		topic:       topic,
 		contentType: contentType,
 	}
 }
 
-func (h *httpPublication) ContentType() string {
+func (h *httpMessage) ContentType() string {
 	return h.contentType
 }
 
-func (h *httpPublication) Topic() string {
+func (h *httpMessage) Topic() string {
 	return h.topic
 }
 
-func (h *httpPublication) Message() interface{} {
-	return h.message
+func (h *httpMessage) Payload() interface{} {
+	return h.payload
 }

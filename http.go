@@ -95,7 +95,7 @@ func (h *httpClient) call(ctx context.Context, address string, req client.Reques
 	return nil
 }
 
-func (h *httpClient) stream(ctx context.Context, address string, req client.Request, opts client.CallOptions) (client.Streamer, error) {
+func (h *httpClient) stream(ctx context.Context, address string, req client.Request, opts client.CallOptions) (client.Stream, error) {
 	header := make(http.Header)
 	if md, ok := metadata.FromContext(ctx); ok {
 		for k, v := range md {
@@ -159,20 +159,12 @@ func (h *httpClient) Options() client.Options {
 	return h.opts
 }
 
-func (h *httpClient) NewPublication(topic string, msg interface{}) client.Publication {
-	return newHTTPPublication(topic, msg, "application/proto")
+func (h *httpClient) NewMessage(topic string, msg interface{}) client.Message {
+	return newHTTPMessage(topic, msg, "application/proto")
 }
 
 func (h *httpClient) NewRequest(service, method string, req interface{}, reqOpts ...client.RequestOption) client.Request {
 	return newHTTPRequest(service, method, req, h.opts.ContentType, reqOpts...)
-}
-
-func (h *httpClient) NewProtoRequest(service, method string, req interface{}, reqOpts ...client.RequestOption) client.Request {
-	return newHTTPRequest(service, method, req, "application/proto", reqOpts...)
-}
-
-func (h *httpClient) NewJsonRequest(service, method string, req interface{}, reqOpts ...client.RequestOption) client.Request {
-	return newHTTPRequest(service, method, req, "application/json", reqOpts...)
 }
 
 func (h *httpClient) Call(ctx context.Context, req client.Request, rsp interface{}, opts ...client.CallOption) error {
@@ -283,15 +275,7 @@ func (h *httpClient) Call(ctx context.Context, req client.Request, rsp interface
 	return gerr
 }
 
-func (h *httpClient) CallRemote(ctx context.Context, addr string, req client.Request, rsp interface{}, opts ...client.CallOption) error {
-	callOpts := h.opts.CallOptions
-	for _, opt := range opts {
-		opt(&callOpts)
-	}
-	return h.call(ctx, addr, req, rsp, callOpts)
-}
-
-func (h *httpClient) Stream(ctx context.Context, req client.Request, opts ...client.CallOption) (client.Streamer, error) {
+func (h *httpClient) Stream(ctx context.Context, req client.Request, opts ...client.CallOption) (client.Stream, error) {
 	// make a copy of call opts
 	callOpts := h.opts.CallOptions
 	for _, opt := range opts {
@@ -325,7 +309,7 @@ func (h *httpClient) Stream(ctx context.Context, req client.Request, opts ...cli
 	default:
 	}
 
-	call := func(i int) (client.Streamer, error) {
+	call := func(i int) (client.Stream, error) {
 		// call backoff first. Someone may want an initial start delay
 		t, err := callOpts.Backoff(ctx, req, i)
 		if err != nil {
@@ -355,7 +339,7 @@ func (h *httpClient) Stream(ctx context.Context, req client.Request, opts ...cli
 	}
 
 	type response struct {
-		stream client.Streamer
+		stream client.Stream
 		err    error
 	}
 
@@ -393,15 +377,7 @@ func (h *httpClient) Stream(ctx context.Context, req client.Request, opts ...cli
 	return nil, grr
 }
 
-func (h *httpClient) StreamRemote(ctx context.Context, addr string, req client.Request, opts ...client.CallOption) (client.Streamer, error) {
-	callOpts := h.opts.CallOptions
-	for _, opt := range opts {
-		opt(&callOpts)
-	}
-	return h.stream(ctx, addr, req, callOpts)
-}
-
-func (h *httpClient) Publish(ctx context.Context, p client.Publication, opts ...client.PublishOption) error {
+func (h *httpClient) Publish(ctx context.Context, p client.Message, opts ...client.PublishOption) error {
 	md, ok := metadata.FromContext(ctx)
 	if !ok {
 		md = make(map[string]string)
@@ -414,7 +390,7 @@ func (h *httpClient) Publish(ctx context.Context, p client.Publication, opts ...
 	}
 
 	b := &buffer{bytes.NewBuffer(nil)}
-	if err := cf(b).Write(&codec.Message{Type: codec.Publication}, p.Message()); err != nil {
+	if err := cf(b).Write(&codec.Message{Type: codec.Publication}, p.Payload()); err != nil {
 		return errors.InternalServerError("go.micro.client", err.Error())
 	}
 
