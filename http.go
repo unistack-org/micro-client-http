@@ -180,8 +180,8 @@ func (h *httpClient) Options() client.Options {
 	return h.opts
 }
 
-func (h *httpClient) NewMessage(topic string, msg interface{}) client.Message {
-	return newHTTPMessage(topic, msg, "application/proto")
+func (h *httpClient) NewMessage(topic string, msg interface{}, opts ...client.MessageOption) client.Message {
+	return newHTTPMessage(topic, msg, "application/proto", opts...)
 }
 
 func (h *httpClient) NewRequest(service, method string, req interface{}, reqOpts ...client.RequestOption) client.Request {
