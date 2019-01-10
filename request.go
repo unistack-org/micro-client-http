@@ -40,7 +40,7 @@ func (h *httpRequest) Service() string {
 	return h.service
 }
 
-func (h *httpRequest) Method() string {
+func (h *httpRequest) Endpoint() string {
 	return h.method
 }
 

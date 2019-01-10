@@ -87,7 +87,7 @@ func (h *httpClient) call(ctx context.Context, address string, req client.Reques
 		URL: &url.URL{
 			Scheme: "http",
 			Host:   address,
-			Path:   req.Method(),
+			Path:   req.Endpoint(),
 		},
 		Header:        header,
 		Body:          buf,

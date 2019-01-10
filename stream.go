@@ -72,7 +72,7 @@ func (h *httpStream) Send(msg interface{}) error {
 		URL: &url.URL{
 			Scheme: "http",
 			Host:   h.address,
-			Path:   h.request.Method(),
+			Path:   h.request.Endpoint(),
 		},
 		Header:        h.header,
 		Body:          buf,
