@@ -74,7 +74,7 @@ func (h *httpClient) call(ctx context.Context, address string, req client.Reques
 	}
 
 	// marshal request
-	b, err := cf.Marshal(req.Request())
+	b, err := cf.Marshal(req.Body())
 	if err != nil {
 		return errors.InternalServerError("go.micro.client", err.Error())
 	}
