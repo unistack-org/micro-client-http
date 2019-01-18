@@ -40,6 +40,10 @@ func (h *httpRequest) Service() string {
 	return h.service
 }
 
+func (h *httpRequest) Method() string {
+	return h.method
+}
+
 func (h *httpRequest) Endpoint() string {
 	return h.method
 }
