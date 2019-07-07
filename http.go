@@ -20,8 +20,8 @@ import (
 	"github.com/micro/go-micro/config/cmd"
 	errors "github.com/micro/go-micro/errors"
 	"github.com/micro/go-micro/metadata"
-	"github.com/micro/go-micro/registry"
 	"github.com/micro/go-micro/network/transport"
+	"github.com/micro/go-micro/registry"
 )
 
 type httpClient struct {
@@ -413,7 +413,7 @@ func (h *httpClient) Publish(ctx context.Context, p client.Message, opts ...clie
 	}
 
 	b := &buffer{bytes.NewBuffer(nil)}
-	if err := cf(b).Write(&codec.Message{Type: codec.Publication}, p.Payload()); err != nil {
+	if err := cf(b).Write(&codec.Message{Type: codec.Event}, p.Payload()); err != nil {
 		return errors.InternalServerError("go.micro.client", err.Error())
 	}
 
