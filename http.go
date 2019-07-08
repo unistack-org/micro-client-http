@@ -57,10 +57,6 @@ func (h *httpClient) next(request client.Request, opts client.CallOptions) (sele
 func (h *httpClient) call(ctx context.Context, node *registry.Node, req client.Request, rsp interface{}, opts client.CallOptions) error {
 	// set the address
 	address := node.Address
-	if node.Port > 0 {
-		address = fmt.Sprintf("%s:%d", address, node.Port)
-	}
-
 	header := make(http.Header)
 	if md, ok := metadata.FromContext(ctx); ok {
 		for k, v := range md {
@@ -125,10 +121,6 @@ func (h *httpClient) call(ctx context.Context, node *registry.Node, req client.R
 func (h *httpClient) stream(ctx context.Context, node *registry.Node, req client.Request, opts client.CallOptions) (client.Stream, error) {
 	// set the address
 	address := node.Address
-	if node.Port > 0 {
-		address = fmt.Sprintf("%s:%d", address, node.Port)
-	}
-
 	header := make(http.Header)
 	if md, ok := metadata.FromContext(ctx); ok {
 		for k, v := range md {
@@ -349,11 +341,6 @@ func (h *httpClient) Stream(ctx context.Context, req client.Request, opts ...cli
 			return nil, errors.NotFound("go.micro.client", err.Error())
 		} else if err != nil {
 			return nil, errors.InternalServerError("go.micro.client", err.Error())
-		}
-
-		addr := node.Address
-		if node.Port > 0 {
-			addr = fmt.Sprintf("%s:%d", addr, node.Port)
 		}
 
 		stream, err := h.stream(ctx, node, req, callOpts)
