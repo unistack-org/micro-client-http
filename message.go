@@ -1,7 +1,7 @@
 package http
 
 import (
-	"github.com/micro/go-micro/v2/client"
+	"github.com/unistack-org/micro/v3/client"
 )
 
 type httpMessage struct {
@@ -11,19 +11,15 @@ type httpMessage struct {
 }
 
 func newHTTPMessage(topic string, payload interface{}, contentType string, opts ...client.MessageOption) client.Message {
-	var options client.MessageOptions
-	for _, o := range opts {
-		o(&options)
-	}
-
-	if len(options.ContentType) > 0 {
-		contentType = options.ContentType
+	options := client.NewMessageOptions(opts...)
+	if len(options.ContentType) == 0 {
+		options.ContentType = contentType
 	}
 
 	return &httpMessage{
 		payload:     payload,
 		topic:       topic,
-		contentType: contentType,
+		contentType: options.ContentType,
 	}
 }
 

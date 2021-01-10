@@ -11,20 +11,14 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"sync"
 	"time"
 
-	"github.com/micro/go-micro/v2/broker"
-	"github.com/micro/go-micro/v2/client"
-	"github.com/micro/go-micro/v2/cmd"
-	"github.com/micro/go-micro/v2/codec"
-	raw "github.com/micro/go-micro/v2/codec/bytes"
-	errors "github.com/micro/go-micro/v2/errors"
-	"github.com/micro/go-micro/v2/metadata"
-	"github.com/micro/go-micro/v2/registry"
-	"github.com/micro/go-micro/v2/router"
-	"github.com/micro/go-micro/v2/selector"
-	"github.com/micro/go-micro/v2/transport"
+	"github.com/unistack-org/micro/v3/broker"
+	"github.com/unistack-org/micro/v3/client"
+	"github.com/unistack-org/micro/v3/codec"
+	errors "github.com/unistack-org/micro/v3/errors"
+	"github.com/unistack-org/micro/v3/metadata"
+	"github.com/unistack-org/micro/v3/router"
 )
 
 func filterLabel(r []router.Route) []router.Route {
@@ -33,17 +27,41 @@ func filterLabel(r []router.Route) []router.Route {
 }
 
 type httpClient struct {
-	once sync.Once
-	opts client.Options
+	opts    client.Options
+	dialer  *net.Dialer
+	httpcli *http.Client
 }
 
-func init() {
-	cmd.DefaultClients["http"] = NewClient
+func newRequest(addr string, req client.Request, opts client.CallOptions) (*http.Request, error) {
+	hreq := &http.Request{Method: http.MethodPost}
+	u, err := url.Parse(addr)
+	if err != nil {
+		hreq.URL = &url.URL{
+			Scheme: "http",
+			Host:   addr,
+			Path:   req.Endpoint(),
+		}
+		hreq.Host = addr
+	} else {
+		ep := req.Endpoint()
+		if opts.Context != nil {
+			if m, ok := opts.Context.Value(methodKey{}).(string); ok {
+				hreq.Method = m
+			}
+			if p, ok := opts.Context.Value(pathKey{}).(string); ok {
+				ep = p
+			}
+		}
+
+		hreq.URL, err = u.Parse(ep)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return hreq, nil
 }
 
-func (h *httpClient) call(ctx context.Context, node *registry.Node, req client.Request, rsp interface{}, opts client.CallOptions) error {
-	// set the address
-	address := node.Address
+func (h *httpClient) call(ctx context.Context, addr string, req client.Request, rsp interface{}, opts client.CallOptions) error {
 	header := make(http.Header)
 	if md, ok := metadata.FromContext(ctx); ok {
 		for k, v := range md {
@@ -57,7 +75,7 @@ func (h *httpClient) call(ctx context.Context, node *registry.Node, req client.R
 	header.Set("Content-Type", req.ContentType())
 
 	// get codec
-	cf, err := h.newHTTPCodec(req.ContentType())
+	cf, err := h.newCodec(req.ContentType())
 	if err != nil {
 		return errors.InternalServerError("go.micro.client", err.Error())
 	}
@@ -68,51 +86,34 @@ func (h *httpClient) call(ctx context.Context, node *registry.Node, req client.R
 		return errors.InternalServerError("go.micro.client", err.Error())
 	}
 
-	buf := &buffer{bytes.NewBuffer(b)}
-	defer buf.Close()
-
-	hreq := &http.Request{
-		Method: "POST",
-		URL: &url.URL{
-			Scheme: "http",
-			Host:   address,
-			Path:   req.Endpoint(),
-		},
-		Header:        header,
-		Body:          buf,
-		ContentLength: int64(len(b)),
-		Host:          address,
+	hreq, err := newRequest(addr, req, opts)
+	if err != nil {
+		return errors.InternalServerError("go.micro.client", err.Error())
 	}
 
+	hreq.Header = header
+	hreq.Body = ioutil.NopCloser(bytes.NewBuffer(b))
+	hreq.ContentLength = int64(len(b))
 	// make the request
-	hrsp, err := http.DefaultClient.Do(hreq.WithContext(ctx))
+	hrsp, err := h.httpcli.Do(hreq.WithContext(ctx))
 	if err != nil {
 		return errors.InternalServerError("go.micro.client", err.Error())
 	}
 	defer hrsp.Body.Close()
 
-	// parse response
-	b, err = ioutil.ReadAll(hrsp.Body)
-	if err != nil {
-		return errors.InternalServerError("go.micro.client", err.Error())
-	}
-
-	// unmarshal
-	if err := cf.Unmarshal(b, rsp); err != nil {
-		return errors.InternalServerError("go.micro.client", err.Error())
-	}
-
-	return nil
+	return parseRsp(ctx, hrsp, cf, rsp, opts)
 }
 
-func (h *httpClient) stream(ctx context.Context, node *registry.Node, req client.Request, opts client.CallOptions) (client.Stream, error) {
-	// set the address
-	address := node.Address
-	header := make(http.Header)
+func (h *httpClient) stream(ctx context.Context, addr string, req client.Request, opts client.CallOptions) (client.Stream, error) {
+	var header http.Header
+
 	if md, ok := metadata.FromContext(ctx); ok {
+		header = make(http.Header, len(md)+2)
 		for k, v := range md {
 			header.Set(k, v)
 		}
+	} else {
+		header = make(http.Header, 2)
 	}
 
 	// set timeout in nanoseconds
@@ -121,20 +122,26 @@ func (h *httpClient) stream(ctx context.Context, node *registry.Node, req client
 	header.Set("Content-Type", req.ContentType())
 
 	// get codec
-	cf, err := h.newHTTPCodec(req.ContentType())
+	cf, err := h.newCodec(req.ContentType())
 	if err != nil {
 		return nil, errors.InternalServerError("go.micro.client", err.Error())
 	}
 
-	cc, err := net.Dial("tcp", address)
+	dialAddr := addr
+	u, err := url.Parse(dialAddr)
+	if err == nil && u.Scheme != "" && u.Host != "" {
+		dialAddr = u.Host
+	}
+	cc, err := h.dialer.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return nil, errors.InternalServerError("go.micro.client", fmt.Sprintf("Error dialing: %v", err))
 	}
 
 	return &httpStream{
-		address: address,
+		address: addr,
 		context: ctx,
 		closed:  make(chan bool),
+		opts:    opts,
 		conn:    cc,
 		codec:   cf,
 		header:  header,
@@ -143,21 +150,12 @@ func (h *httpClient) stream(ctx context.Context, node *registry.Node, req client
 	}, nil
 }
 
-func (h *httpClient) newHTTPCodec(contentType string) (Codec, error) {
-	if c, ok := defaultHTTPCodecs[contentType]; ok {
+func (h *httpClient) newCodec(ct string) (codec.Codec, error) {
+	if c, ok := h.opts.Codecs[ct]; ok {
 		return c, nil
 	}
-	return nil, fmt.Errorf("Unsupported Content-Type: %s", contentType)
-}
 
-func (h *httpClient) newCodec(contentType string) (codec.NewCodec, error) {
-	if c, ok := h.opts.Codecs[contentType]; ok {
-		return c, nil
-	}
-	if cf, ok := defaultRPCCodecs[contentType]; ok {
-		return cf, nil
-	}
-	return nil, fmt.Errorf("Unsupported Content-Type: %s", contentType)
+	return nil, codec.ErrUnknownContentType
 }
 
 func (h *httpClient) Init(opts ...client.Option) error {
@@ -172,7 +170,7 @@ func (h *httpClient) Options() client.Options {
 }
 
 func (h *httpClient) NewMessage(topic string, msg interface{}, opts ...client.MessageOption) client.Message {
-	return newHTTPMessage(topic, msg, "application/proto", opts...)
+	return newHTTPMessage(topic, msg, h.opts.ContentType, opts...)
 }
 
 func (h *httpClient) NewRequest(service, method string, req interface{}, reqOpts ...client.RequestOption) client.Request {
@@ -189,8 +187,10 @@ func (h *httpClient) Call(ctx context.Context, req client.Request, rsp interface
 	// check if we already have a deadline
 	d, ok := ctx.Deadline()
 	if !ok {
+		var cancel context.CancelFunc
 		// no deadline so we create a new one
-		ctx, _ = context.WithTimeout(ctx, callOpts.RequestTimeout)
+		ctx, cancel = context.WithTimeout(ctx, callOpts.RequestTimeout)
+		defer cancel()
 	} else {
 		// got a deadline so no need to setup context
 		// but we need to set the timeout we pass along
@@ -213,6 +213,34 @@ func (h *httpClient) Call(ctx context.Context, req client.Request, rsp interface
 		hcall = callOpts.CallWrappers[i-1](hcall)
 	}
 
+	// use the router passed as a call option, or fallback to the rpc clients router
+	if callOpts.Router == nil {
+		callOpts.Router = h.opts.Router
+	}
+
+	if callOpts.Selector == nil {
+		callOpts.Selector = h.opts.Selector
+	}
+
+	// inject proxy address
+	// TODO: don't even bother using Lookup/Select in this case
+	if len(h.opts.Proxy) > 0 {
+		callOpts.Address = []string{h.opts.Proxy}
+	}
+
+	// lookup the route to send the reques to
+	// TODO apply any filtering here
+	routes, err := h.opts.Lookup(ctx, req, callOpts)
+	if err != nil {
+		return errors.InternalServerError("go.micro.client", err.Error())
+	}
+
+	// balance the list of nodes
+	next, err := callOpts.Selector.Select(routes)
+	if err != nil {
+		return err
+	}
+
 	// return errors.New("go.micro.client", "request timeout", 408)
 	call := func(i int) error {
 		// call backoff first. Someone may want an initial start delay
@@ -226,32 +254,19 @@ func (h *httpClient) Call(ctx context.Context, req client.Request, rsp interface
 			time.Sleep(t)
 		}
 
-		// use the router passed as a call option, or fallback to the rpc clients router
-		if callOpts.Router == nil {
-			callOpts.Router = h.opts.Router
-		}
-		// use the selector passed as a call option, or fallback to the rpc clients selector
-		if callOpts.Selector == nil {
-			callOpts.Selector = h.opts.Selector
-		}
-
-		callOpts.SelectOptions = append(callOpts.SelectOptions, selector.WithFilter(filterLabel))
-
-		// lookup the route to send the request via
-		route, err := client.LookupRoute(req, callOpts)
-		if err != nil {
-			return err
-		}
-
-		// pass a node to enable backwards compatability as changing the
-		// call func would be a breaking change.
-		// todo v3: change the call func to accept a route
-		node := &registry.Node{Address: route.Address, Metadata: route.Metadata}
-		node.Metadata["protocol"] = "http"
+		node := next()
 
 		// make the call
 		err = hcall(ctx, node, req, rsp, callOpts)
-		h.opts.Selector.Record(*route, err)
+		// record the result of the call to inform future routing decisions
+		if verr := h.opts.Selector.Record(node, err); verr != nil {
+			return verr
+		}
+
+		// try and transform the error to a go-micro error
+		if verr, ok := err.(*errors.Error); ok {
+			return verr
+		}
 
 		return err
 	}
@@ -259,7 +274,7 @@ func (h *httpClient) Call(ctx context.Context, req client.Request, rsp interface
 	ch := make(chan error, callOpts.Retries)
 	var gerr error
 
-	for i := 0; i < callOpts.Retries; i++ {
+	for i := 0; i <= callOpts.Retries; i++ {
 		go func() {
 			ch <- call(i)
 		}()
@@ -299,8 +314,10 @@ func (h *httpClient) Stream(ctx context.Context, req client.Request, opts ...cli
 	// check if we already have a deadline
 	d, ok := ctx.Deadline()
 	if !ok {
+		var cancel context.CancelFunc
 		// no deadline so we create a new one
-		ctx, _ = context.WithTimeout(ctx, callOpts.RequestTimeout)
+		ctx, cancel = context.WithTimeout(ctx, callOpts.RequestTimeout)
+		defer cancel()
 	} else {
 		// got a deadline so no need to setup context
 		// but we need to set the timeout we pass along
@@ -315,6 +332,46 @@ func (h *httpClient) Stream(ctx context.Context, req client.Request, opts ...cli
 	default:
 	}
 
+	/*
+		// make copy of call method
+		hstream, err := h.stream()
+		if err != nil {
+			return nil, err
+		}
+		// wrap the call in reverse
+		for i := len(callOpts.CallWrappers); i > 0; i-- {
+			hstream = callOpts.CallWrappers[i-1](hstream)
+		}
+	*/
+
+	// use the router passed as a call option, or fallback to the rpc clients router
+	if callOpts.Router == nil {
+		callOpts.Router = h.opts.Router
+	}
+
+	if callOpts.Selector == nil {
+		callOpts.Selector = h.opts.Selector
+	}
+
+	// inject proxy address
+	// TODO: don't even bother using Lookup/Select in this case
+	if len(h.opts.Proxy) > 0 {
+		callOpts.Address = []string{h.opts.Proxy}
+	}
+
+	// lookup the route to send the reques to
+	// TODO apply any filtering here
+	routes, err := h.opts.Lookup(ctx, req, callOpts)
+	if err != nil {
+		return nil, errors.InternalServerError("go.micro.client", err.Error())
+	}
+
+	// balance the list of nodes
+	next, err := callOpts.Selector.Select(routes)
+	if err != nil {
+		return nil, err
+	}
+
 	call := func(i int) (client.Stream, error) {
 		// call backoff first. Someone may want an initial start delay
 		t, err := callOpts.Backoff(ctx, req, i)
@@ -327,31 +384,19 @@ func (h *httpClient) Stream(ctx context.Context, req client.Request, opts ...cli
 			time.Sleep(t)
 		}
 
-		// use the router passed as a call option, or fallback to the rpc clients router
-		if callOpts.Router == nil {
-			callOpts.Router = h.opts.Router
-		}
-		// use the selector passed as a call option, or fallback to the rpc clients selector
-		if callOpts.Selector == nil {
-			callOpts.Selector = h.opts.Selector
-		}
-
-		callOpts.SelectOptions = append(callOpts.SelectOptions, selector.WithFilter(filterLabel))
-
-		// lookup the route to send the request via
-		route, err := client.LookupRoute(req, callOpts)
-		if err != nil {
-			return nil, err
-		}
-
-		// pass a node to enable backwards compatability as changing the
-		// call func would be a breaking change.
-		// todo v3: change the call func to accept a route
-		node := &registry.Node{Address: route.Address, Metadata: route.Metadata}
-		node.Metadata["protocol"] = "http"
+		node := next()
 
 		stream, err := h.stream(ctx, node, req, callOpts)
-		h.opts.Selector.Record(*route, err)
+
+		// record the result of the call to inform future routing decisions
+		if verr := h.opts.Selector.Record(node, err); verr != nil {
+			return nil, verr
+		}
+
+		// try and transform the error to a go-micro error
+		if verr, ok := err.(*errors.Error); ok {
+			return nil, verr
+		}
 
 		return stream, err
 	}
@@ -363,9 +408,8 @@ func (h *httpClient) Stream(ctx context.Context, req client.Request, opts ...cli
 
 	ch := make(chan response, callOpts.Retries)
 	var grr error
-	var err error
 
-	for i := 0; i < callOpts.Retries; i++ {
+	for i := 0; i <= callOpts.Retries; i++ {
 		go func() {
 			s, err := call(i)
 			ch <- response{s, err}
@@ -397,16 +441,11 @@ func (h *httpClient) Stream(ctx context.Context, req client.Request, opts ...cli
 }
 
 func (h *httpClient) Publish(ctx context.Context, p client.Message, opts ...client.PublishOption) error {
-	options := client.PublishOptions{
-		Context: context.Background(),
-	}
-	for _, o := range opts {
-		o(&options)
-	}
+	options := client.NewPublishOptions(opts...)
 
 	md, ok := metadata.FromContext(ctx)
 	if !ok {
-		md = make(map[string]string)
+		md = metadata.New(2)
 	}
 	md["Content-Type"] = p.ContentType()
 	md["Micro-Topic"] = p.Topic()
@@ -419,19 +458,15 @@ func (h *httpClient) Publish(ctx context.Context, p client.Message, opts ...clie
 	var body []byte
 
 	// passed in raw data
-	if d, ok := p.Payload().(*raw.Frame); ok {
+	if d, ok := p.Payload().(*codec.Frame); ok {
 		body = d.Data
 	} else {
-		b := &buffer{bytes.NewBuffer(nil)}
-		if err := cf(b).Write(&codec.Message{Type: codec.Event}, p.Payload()); err != nil {
+		b := bytes.NewBuffer(nil)
+		if err := cf.Write(b, &codec.Message{Type: codec.Event}, p.Payload()); err != nil {
 			return errors.InternalServerError("go.micro.client", err.Error())
 		}
 		body = b.Bytes()
 	}
-
-	h.once.Do(func() {
-		h.opts.Broker.Connect()
-	})
 
 	topic := p.Topic()
 
@@ -445,50 +480,36 @@ func (h *httpClient) Publish(ctx context.Context, p client.Message, opts ...clie
 		topic = options.Exchange
 	}
 
-	return h.opts.Broker.Publish(topic, &broker.Message{
+	return h.opts.Broker.Publish(ctx, topic, &broker.Message{
 		Header: md,
 		Body:   body,
-	})
+	}, broker.PublishContext(ctx))
 }
 
 func (h *httpClient) String() string {
 	return "http"
 }
 
-func newClient(opts ...client.Option) client.Client {
-	options := client.Options{
-		CallOptions: client.CallOptions{
-			Backoff:        client.DefaultBackoff,
-			Retry:          client.DefaultRetry,
-			Retries:        client.DefaultRetries,
-			RequestTimeout: client.DefaultRequestTimeout,
-			DialTimeout:    transport.DefaultDialTimeout,
-		},
-	}
-
-	for _, o := range opts {
-		o(&options)
-	}
+func NewClient(opts ...client.Option) client.Client {
+	options := client.NewOptions(opts...)
 
 	if len(options.ContentType) == 0 {
-		options.ContentType = "application/proto"
-	}
-
-	if options.Broker == nil {
-		options.Broker = broker.DefaultBroker
-	}
-
-	if options.Router == nil {
-		options.Router = router.DefaultRouter
-	}
-
-	if options.Selector == nil {
-		options.Selector = selector.DefaultSelector
+		options.ContentType = "application/json"
 	}
 
 	rc := &httpClient{
-		once: sync.Once{},
 		opts: options,
+	}
+
+	if httpcli, ok := options.Context.Value(httpClientKey{}).(*http.Client); ok {
+		rc.httpcli = httpcli
+	} else {
+		rc.httpcli = http.DefaultClient
+	}
+	if dialer, ok := options.Context.Value(httpDialerKey{}).(*net.Dialer); ok {
+		rc.dialer = dialer
+	} else {
+		rc.dialer = &net.Dialer{}
 	}
 
 	c := client.Client(rc)
@@ -501,6 +522,37 @@ func newClient(opts ...client.Option) client.Client {
 	return c
 }
 
-func NewClient(opts ...client.Option) client.Client {
-	return newClient(opts...)
+func parseRsp(ctx context.Context, hrsp *http.Response, cf codec.Codec, rsp interface{}, opts client.CallOptions) error {
+	b, err := ioutil.ReadAll(hrsp.Body)
+	if err != nil {
+		return errors.InternalServerError("go.micro.client", err.Error())
+	}
+
+	if hrsp.StatusCode < 400 {
+		// unmarshal
+		if err := cf.Unmarshal(b, rsp); err != nil {
+			return errors.InternalServerError("go.micro.client", err.Error())
+		}
+		return nil
+	}
+
+	errmap, ok := opts.Context.Value(errorMapKey{}).(map[string]interface{})
+	if !ok || errmap == nil {
+		// user not provide map of errors
+		// id: req.Service() ??
+		return errors.New("go.micro.client", string(b), int32(hrsp.StatusCode))
+	}
+
+	if err, ok = errmap[fmt.Sprintf("%d", hrsp.StatusCode)].(error); !ok {
+		err, ok = errmap["default"].(error)
+	}
+	if !ok {
+		return errors.New("go.micro.client", string(b), int32(hrsp.StatusCode))
+	}
+
+	if cerr := cf.Unmarshal(b, err); cerr != nil {
+		return errors.InternalServerError("go.micro.client", cerr.Error())
+	}
+
+	return err
 }

@@ -1,8 +1,8 @@
 package http
 
 import (
-	"github.com/micro/go-micro/v2/client"
-	"github.com/micro/go-micro/v2/codec"
+	"github.com/unistack-org/micro/v3/client"
+	"github.com/unistack-org/micro/v3/codec"
 )
 
 type httpRequest struct {
@@ -13,22 +13,19 @@ type httpRequest struct {
 	opts        client.RequestOptions
 }
 
-func newHTTPRequest(service, method string, request interface{}, contentType string, reqOpts ...client.RequestOption) client.Request {
-	var opts client.RequestOptions
-	for _, o := range reqOpts {
-		o(&opts)
-	}
+func newHTTPRequest(service, method string, request interface{}, contentType string, opts ...client.RequestOption) client.Request {
+	options := client.NewRequestOptions(opts...)
 
-	if len(opts.ContentType) > 0 {
-		contentType = opts.ContentType
+	if len(options.ContentType) == 0 {
+		options.ContentType = contentType
 	}
 
 	return &httpRequest{
 		service:     service,
 		method:      method,
 		request:     request,
-		contentType: contentType,
-		opts:        opts,
+		contentType: options.ContentType,
+		opts:        options,
 	}
 }
 
@@ -48,7 +45,7 @@ func (h *httpRequest) Endpoint() string {
 	return h.method
 }
 
-func (h *httpRequest) Codec() codec.Writer {
+func (h *httpRequest) Codec() codec.Codec {
 	return nil
 }
 

@@ -1,10 +1,5 @@
-module github.com/micro/go-plugins/client/http/v2
+module github.com/unistack-org/micro-client-http
 
-go 1.13
+go 1.14
 
-require (
-	github.com/golang/protobuf v1.4.0
-	github.com/micro/go-micro/v2 v2.9.1-0.20200716153311-f9bf56239306
-)
-
-replace github.com/coreos/etcd => github.com/ozonru/etcd v3.3.20-grpc1.27-origmodule+incompatible
+require github.com/unistack-org/micro/v3 v3.0.2-0.20201125221305-0d93b2c31c79
