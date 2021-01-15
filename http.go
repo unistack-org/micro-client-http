@@ -16,7 +16,7 @@ import (
 	"github.com/unistack-org/micro/v3/broker"
 	"github.com/unistack-org/micro/v3/client"
 	"github.com/unistack-org/micro/v3/codec"
-	errors "github.com/unistack-org/micro/v3/errors"
+	"github.com/unistack-org/micro/v3/errors"
 	"github.com/unistack-org/micro/v3/metadata"
 	"github.com/unistack-org/micro/v3/router"
 )
