@@ -109,8 +109,19 @@ func (h *httpClient) call(ctx context.Context, addr string, req client.Request, 
 	// make the request
 	hrsp, err := h.httpcli.Do(hreq.WithContext(ctx))
 	if err != nil {
+		switch err := err.(type) {
+		case net.Error:
+			if err.Timeout() {
+				return errors.Timeout("go.micro.client", err.Error())
+			}
+		case *url.Error:
+			if err, ok := err.Err.(net.Error); ok && err.Timeout() {
+				return errors.Timeout("go.micro.client", err.Error())
+			}
+		}
 		return errors.InternalServerError("go.micro.client", err.Error())
 	}
+
 	defer hrsp.Body.Close()
 
 	return parseRsp(ctx, hrsp, cf, rsp, opts)
