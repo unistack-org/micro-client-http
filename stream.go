@@ -2,10 +2,8 @@ package http
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"sync"
@@ -65,22 +63,14 @@ func (h *httpStream) Send(msg interface{}) error {
 		return errShutdown
 	}
 
-	b, err := h.codec.Marshal(msg)
+	hreq, err := newRequest(h.address, h.request, h.codec, msg, h.opts)
 	if err != nil {
 		return err
 	}
 
-	buf := bytes.NewBuffer(b)
-	req, err := newRequest(h.address, h.request, h.opts)
-	if err != nil {
-		return err
-	}
+	hreq.Header = h.header
 
-	req.Header = h.header
-	req.Body = ioutil.NopCloser(buf)
-	req.ContentLength = int64(len(b))
-
-	return req.Write(h.conn)
+	return hreq.Write(h.conn)
 }
 
 func (h *httpStream) Recv(msg interface{}) error {

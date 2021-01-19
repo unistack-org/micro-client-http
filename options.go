@@ -1,7 +1,6 @@
 package http
 
 import (
-	"context"
 	"crypto/tls"
 	"net"
 	"net/http"
@@ -36,109 +35,63 @@ type maxSendMsgSizeKey struct{}
 
 // maximum streams on a connectioin
 func PoolMaxStreams(n int) client.Option {
-	return func(o *client.Options) {
-		if o.Context == nil {
-			o.Context = context.Background()
-		}
-		o.Context = context.WithValue(o.Context, poolMaxStreams{}, n)
-	}
+	return client.SetOption(poolMaxStreams{}, n)
 }
 
 // maximum idle conns of a pool
 func PoolMaxIdle(d int) client.Option {
-	return func(o *client.Options) {
-		if o.Context == nil {
-			o.Context = context.Background()
-		}
-		o.Context = context.WithValue(o.Context, poolMaxIdle{}, d)
-	}
+	return client.SetOption(poolMaxIdle{}, d)
 }
 
 // AuthTLS should be used to setup a secure authentication using TLS
 func AuthTLS(t *tls.Config) client.Option {
-	return func(o *client.Options) {
-		if o.Context == nil {
-			o.Context = context.Background()
-		}
-		o.Context = context.WithValue(o.Context, tlsAuth{}, t)
-	}
+	return client.SetOption(tlsAuth{}, t)
 }
 
 //
 // MaxRecvMsgSize set the maximum size of message that client can receive.
-//
 func MaxRecvMsgSize(s int) client.Option {
-	return func(o *client.Options) {
-		if o.Context == nil {
-			o.Context = context.Background()
-		}
-		o.Context = context.WithValue(o.Context, maxRecvMsgSizeKey{}, s)
-	}
+	return client.SetOption(maxRecvMsgSizeKey{}, s)
 }
 
 //
 // MaxSendMsgSize set the maximum size of message that client can send.
-//
 func MaxSendMsgSize(s int) client.Option {
-	return func(o *client.Options) {
-		if o.Context == nil {
-			o.Context = context.Background()
-		}
-		o.Context = context.WithValue(o.Context, maxSendMsgSizeKey{}, s)
-	}
+	return client.SetOption(maxSendMsgSizeKey{}, s)
 }
 
 type httpClientKey struct{}
 
 func HTTPClient(c *http.Client) client.Option {
-	return func(o *client.Options) {
-		if o.Context == nil {
-			o.Context = context.Background()
-		}
-		o.Context = context.WithValue(o.Context, httpClientKey{}, c)
-	}
+	return client.SetOption(httpClientKey{}, c)
 }
 
 type httpDialerKey struct{}
 
 func HTTPDialer(d *net.Dialer) client.Option {
-	return func(o *client.Options) {
-		if o.Context == nil {
-			o.Context = context.Background()
-		}
-		o.Context = context.WithValue(o.Context, httpDialerKey{}, d)
-	}
+	return client.SetOption(httpDialerKey{}, d)
 }
 
 type methodKey struct{}
 
 func Method(m string) client.CallOption {
-	return func(o *client.CallOptions) {
-		if o.Context == nil {
-			o.Context = context.Background()
-		}
-		o.Context = context.WithValue(o.Context, methodKey{}, m)
-	}
+	return client.SetCallOption(methodKey{}, m)
 }
 
 type pathKey struct{}
 
 func Path(p string) client.CallOption {
-	return func(o *client.CallOptions) {
-		if o.Context == nil {
-			o.Context = context.Background()
-		}
-		o.Context = context.WithValue(o.Context, pathKey{}, p)
-	}
+	return client.SetCallOption(pathKey{}, p)
+}
+
+type bodyKey struct{}
+
+func Body(b string) client.CallOption {
+	return client.SetCallOption(bodyKey{}, b)
 }
 
 type errorMapKey struct{}
 
 func ErrorMap(m map[string]interface{}) client.CallOption {
-	return func(o *client.CallOptions) {
-		if o.Context == nil {
-			o.Context = context.Background()
-		}
-		o.Context = context.WithValue(o.Context, errorMapKey{}, m)
-	}
+	return client.SetCallOption(errorMapKey{}, m)
 }

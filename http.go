@@ -32,8 +32,9 @@ type httpClient struct {
 	httpcli *http.Client
 }
 
-func newRequest(addr string, req client.Request, opts client.CallOptions) (*http.Request, error) {
+func newRequest(addr string, req client.Request, cf codec.Codec, msg interface{}, opts client.CallOptions) (*http.Request, error) {
 	hreq := &http.Request{Method: http.MethodPost}
+	body := "*" // as like google api http annotation
 	u, err := url.Parse(addr)
 	if err != nil {
 		hreq.URL = &url.URL{
@@ -51,18 +52,36 @@ func newRequest(addr string, req client.Request, opts client.CallOptions) (*http
 			if p, ok := opts.Context.Value(pathKey{}).(string); ok {
 				ep = p
 			}
+			if b, ok := opts.Context.Value(bodyKey{}).(string); ok {
+				body = b
+			}
 		}
-
 		hreq.URL, err = u.Parse(ep)
 		if err != nil {
-			return nil, err
+			return nil, errors.BadRequest("go.micro.client", err.Error())
 		}
 	}
+
+	path, nmsg, err := newPathRequest(hreq.URL.Path, hreq.Method, body, msg)
+	if err != nil {
+		return nil, errors.BadRequest("go.micro.client", err.Error())
+	}
+
+	hreq.URL.Path = path
+	// marshal request
+	b, err := cf.Marshal(nmsg)
+	if err != nil {
+		return nil, errors.BadRequest("go.micro.client", err.Error())
+	}
+
+	hreq.Body = ioutil.NopCloser(bytes.NewBuffer(b))
+	hreq.ContentLength = int64(len(b))
+
 	return hreq, nil
 }
 
 func (h *httpClient) call(ctx context.Context, addr string, req client.Request, rsp interface{}, opts client.CallOptions) error {
-	header := make(http.Header)
+	header := make(http.Header, 2)
 	if md, ok := metadata.FromContext(ctx); ok {
 		for k, v := range md {
 			header.Set(k, v)
@@ -80,20 +99,13 @@ func (h *httpClient) call(ctx context.Context, addr string, req client.Request, 
 		return errors.InternalServerError("go.micro.client", err.Error())
 	}
 
-	// marshal request
-	b, err := cf.Marshal(req.Body())
+	hreq, err := newRequest(addr, req, cf, req.Body(), opts)
 	if err != nil {
-		return errors.InternalServerError("go.micro.client", err.Error())
-	}
-
-	hreq, err := newRequest(addr, req, opts)
-	if err != nil {
-		return errors.InternalServerError("go.micro.client", err.Error())
+		return err
 	}
 
 	hreq.Header = header
-	hreq.Body = ioutil.NopCloser(bytes.NewBuffer(b))
-	hreq.ContentLength = int64(len(b))
+
 	// make the request
 	hrsp, err := h.httpcli.Do(hreq.WithContext(ctx))
 	if err != nil {
