@@ -513,6 +513,10 @@ func (h *httpClient) String() string {
 	return "http"
 }
 
+func (h *httpClient) Name() string {
+	return h.opts.Name
+}
+
 func NewClient(opts ...client.Option) client.Client {
 	options := client.NewOptions(opts...)
 
