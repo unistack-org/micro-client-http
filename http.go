@@ -21,6 +21,10 @@ import (
 	"github.com/unistack-org/micro/v3/router"
 )
 
+var (
+	DefaultContentType = "application/json"
+)
+
 func filterLabel(r []router.Route) []router.Route {
 	//				selector.FilterLabel("protocol", "http")
 	return r
@@ -521,7 +525,7 @@ func NewClient(opts ...client.Option) client.Client {
 	options := client.NewOptions(opts...)
 
 	if len(options.ContentType) == 0 {
-		options.ContentType = "application/json"
+		options.ContentType = DefaultContentType
 	}
 
 	rc := &httpClient{
