@@ -1,6 +1,8 @@
 package http
 
 import (
+	"net/url"
+	"strings"
 	"testing"
 )
 
@@ -17,7 +19,15 @@ func TestValidPath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, _ = p, m
+	u, err := url.Parse(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = m
+	parts := strings.Split(u.RawQuery, "&")
+	if len(parts) != 3 {
+		t.Fatalf("invalid path: %v", parts)
+	}
 }
 
 func TestInvalidPath(t *testing.T) {
