@@ -23,10 +23,6 @@ func newPathRequest(path string, method string, body string, msg interface{}) (s
 		return "", nil, err
 	}
 
-	if len(tpl.Fields) == 0 {
-		return path, msg, nil
-	}
-
 	fieldsmap := make(map[string]string, len(tpl.Fields))
 	for _, v := range tpl.Fields {
 		fieldsmap[v] = ""
@@ -59,9 +55,9 @@ func newPathRequest(path string, method string, body string, msg interface{}) (s
 		lfield := strings.ToLower(fld.Name)
 		if _, ok := fieldsmap[lfield]; ok {
 			fieldsmap[lfield] = fmt.Sprintf("%v", val.Interface())
-		} else if body == "*" || body == lfield && method != http.MethodGet {
+		} else if (body == "*" || body == lfield) && method != http.MethodGet {
 			tnmsg.Field(i).Set(val)
-		} else if method == http.MethodGet {
+		} else {
 			values[lfield] = fmt.Sprintf("%v", val.Interface())
 		}
 	}
@@ -83,19 +79,17 @@ func newPathRequest(path string, method string, body string, msg interface{}) (s
 		}
 	}
 
-	if method == http.MethodGet {
-		idx := 0
-		for k, v := range values {
-			if idx == 0 {
-				_, _ = b.WriteRune('?')
-			} else {
-				_, _ = b.WriteRune('&')
-			}
-			_, _ = b.WriteString(k)
-			_, _ = b.WriteRune('=')
-			_, _ = b.WriteString(v)
-			idx++
+	idx := 0
+	for k, v := range values {
+		if idx == 0 {
+			_, _ = b.WriteRune('?')
+		} else {
+			_, _ = b.WriteRune('&')
 		}
+		_, _ = b.WriteString(k)
+		_, _ = b.WriteRune('=')
+		_, _ = b.WriteString(v)
+		idx++
 	}
 
 	return b.String(), nmsg, nil
