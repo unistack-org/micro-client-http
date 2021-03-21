@@ -71,11 +71,19 @@ func newRequest(addr string, req client.Request, cf codec.Codec, msg interface{}
 		return nil, errors.BadRequest("go.micro.client", err.Error())
 	}
 
-	hreq.URL.Path = path
-	// marshal request
-	b, err := cf.Marshal(nmsg)
+	hreq.URL, err = url.Parse(addr + path)
 	if err != nil {
 		return nil, errors.BadRequest("go.micro.client", err.Error())
+	}
+
+	var b []byte
+
+	// marshal request is struct not empty
+	if nmsg != nil {
+		b, err = cf.Marshal(nmsg)
+		if err != nil {
+			return nil, errors.BadRequest("go.micro.client", err.Error())
+		}
 	}
 
 	hreq.Body = ioutil.NopCloser(bytes.NewBuffer(b))

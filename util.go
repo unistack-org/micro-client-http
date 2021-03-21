@@ -92,6 +92,10 @@ func newPathRequest(path string, method string, body string, msg interface{}) (s
 		idx++
 	}
 
+	if rutil.IsZero(nmsg) {
+		return b.String(), nil, nil
+	}
+
 	return b.String(), nmsg, nil
 }
 
