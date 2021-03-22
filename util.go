@@ -1,12 +1,17 @@
 package http
 
 import (
+	"context"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"reflect"
 	"strings"
 	"sync"
 
+	"github.com/unistack-org/micro/v3/client"
+	"github.com/unistack-org/micro/v3/codec"
+	"github.com/unistack-org/micro/v3/errors"
 	rutil "github.com/unistack-org/micro/v3/util/reflect"
 	util "github.com/unistack-org/micro/v3/util/router"
 )
@@ -16,7 +21,7 @@ var (
 	mu            sync.RWMutex
 )
 
-func newPathRequest(path string, method string, body string, msg interface{}) (string, interface{}, error) {
+func newPathRequest(path string, method string, body string, msg interface{}, tags []string) (string, interface{}, error) {
 	// parse via https://github.com/googleapis/googleapis/blob/master/google/api/http.proto definition
 	tpl, err := newTemplate(path)
 	if err != nil {
@@ -52,13 +57,38 @@ func newPathRequest(path string, method string, body string, msg interface{}) (s
 			continue
 		}
 		fld := tmsg.Type().Field(i)
-		lfield := strings.ToLower(fld.Name)
-		if _, ok := fieldsmap[lfield]; ok {
-			fieldsmap[lfield] = fmt.Sprintf("%v", val.Interface())
-		} else if (body == "*" || body == lfield) && method != http.MethodGet {
+
+		t := &tag{}
+		for _, tn := range tags {
+			ts, ok := fld.Tag.Lookup(tn)
+			if !ok {
+				continue
+			}
+
+			tp := strings.Split(ts, ",")
+			// special
+			switch tn {
+			case "protobuf": // special
+				t = &tag{key: tn, name: tp[3][5:], opts: append(tp[:3], tp[4:]...)}
+			default:
+				t = &tag{key: tn, name: tp[0], opts: tp[1:]}
+			}
+			if t.name != "" {
+				break
+			}
+		}
+
+		if t.name == "" {
+			// fallback to lowercase
+			t.name = strings.ToLower(fld.Name)
+		}
+
+		if _, ok := fieldsmap[t.name]; ok {
+			fieldsmap[t.name] = fmt.Sprintf("%v", val.Interface())
+		} else if (body == "*" || body == t.name) && method != http.MethodGet {
 			tnmsg.Field(i).Set(val)
 		} else {
-			values[lfield] = fmt.Sprintf("%v", val.Interface())
+			values[t.name] = fmt.Sprintf("%v", val.Interface())
 		}
 	}
 
@@ -119,4 +149,45 @@ func newTemplate(path string) (util.Template, error) {
 	mu.Unlock()
 
 	return tpl, nil
+}
+
+func parseRsp(ctx context.Context, hrsp *http.Response, cf codec.Codec, rsp interface{}, opts client.CallOptions) error {
+	b, err := ioutil.ReadAll(hrsp.Body)
+	if err != nil {
+		return errors.InternalServerError("go.micro.client", err.Error())
+	}
+
+	if hrsp.StatusCode < 400 {
+		// unmarshal
+		if err := cf.Unmarshal(b, rsp); err != nil {
+			return errors.InternalServerError("go.micro.client", err.Error())
+		}
+		return nil
+	}
+
+	errmap, ok := opts.Context.Value(errorMapKey{}).(map[string]interface{})
+	if !ok || errmap == nil {
+		// user not provide map of errors
+		// id: req.Service() ??
+		return errors.New("go.micro.client", string(b), int32(hrsp.StatusCode))
+	}
+
+	if err, ok = errmap[fmt.Sprintf("%d", hrsp.StatusCode)].(error); !ok {
+		err, ok = errmap["default"].(error)
+	}
+	if !ok {
+		return errors.New("go.micro.client", string(b), int32(hrsp.StatusCode))
+	}
+
+	if cerr := cf.Unmarshal(b, err); cerr != nil {
+		return errors.InternalServerError("go.micro.client", cerr.Error())
+	}
+
+	return err
+}
+
+type tag struct {
+	key  string
+	name string
+	opts []string
 }

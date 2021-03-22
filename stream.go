@@ -18,7 +18,8 @@ type httpStream struct {
 	sync.RWMutex
 	address string
 	opts    client.CallOptions
-	codec   codec.Codec
+	ct      string
+	cf      codec.Codec
 	context context.Context
 	header  http.Header
 	seq     uint64
@@ -63,7 +64,7 @@ func (h *httpStream) Send(msg interface{}) error {
 		return errShutdown
 	}
 
-	hreq, err := newRequest(h.address, h.request, h.codec, msg, h.opts)
+	hreq, err := newRequest(h.address, h.request, h.ct, h.cf, msg, h.opts)
 	if err != nil {
 		return err
 	}
@@ -88,7 +89,7 @@ func (h *httpStream) Recv(msg interface{}) error {
 	}
 	defer hrsp.Body.Close()
 
-	return parseRsp(h.context, hrsp, h.codec, msg, h.opts)
+	return parseRsp(h.context, hrsp, h.cf, msg, h.opts)
 }
 
 func (h *httpStream) Error() error {

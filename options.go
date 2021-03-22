@@ -95,3 +95,9 @@ type errorMapKey struct{}
 func ErrorMap(m map[string]interface{}) client.CallOption {
 	return client.SetCallOption(errorMapKey{}, m)
 }
+
+type structTagsKey struct{}
+
+func StructTags(tags []string) client.CallOption {
+	return client.SetCallOption(structTagsKey{}, tags)
+}

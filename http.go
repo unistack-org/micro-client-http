@@ -36,9 +36,11 @@ type httpClient struct {
 	httpcli *http.Client
 }
 
-func newRequest(addr string, req client.Request, cf codec.Codec, msg interface{}, opts client.CallOptions) (*http.Request, error) {
+func newRequest(addr string, req client.Request, ct string, cf codec.Codec, msg interface{}, opts client.CallOptions) (*http.Request, error) {
 	hreq := &http.Request{Method: http.MethodPost}
 	body := "*" // as like google api http annotation
+
+	var tags []string
 	u, err := url.Parse(addr)
 	if err != nil {
 		hreq.URL = &url.URL{
@@ -59,6 +61,10 @@ func newRequest(addr string, req client.Request, cf codec.Codec, msg interface{}
 			if b, ok := opts.Context.Value(bodyKey{}).(string); ok {
 				body = b
 			}
+			if t, ok := opts.Context.Value(structTagsKey{}).([]string); ok && len(t) > 0 {
+				tags = t
+			}
+
 		}
 		hreq.URL, err = u.Parse(ep)
 		if err != nil {
@@ -66,7 +72,16 @@ func newRequest(addr string, req client.Request, cf codec.Codec, msg interface{}
 		}
 	}
 
-	path, nmsg, err := newPathRequest(hreq.URL.Path, hreq.Method, body, msg)
+	if len(tags) == 0 {
+		switch ct {
+		default:
+			tags = append(tags, "json", "protobuf")
+		case "text/xml":
+			tags = append(tags, "xml")
+		}
+	}
+
+	path, nmsg, err := newPathRequest(hreq.URL.Path, hreq.Method, body, msg, tags)
 	if err != nil {
 		return nil, errors.BadRequest("go.micro.client", err.Error())
 	}
@@ -100,18 +115,20 @@ func (h *httpClient) call(ctx context.Context, addr string, req client.Request, 
 		}
 	}
 
+	ct := req.ContentType()
+
 	// set timeout in nanoseconds
 	header.Set("Timeout", fmt.Sprintf("%d", opts.RequestTimeout))
 	// set the content type for the request
-	header.Set("Content-Type", req.ContentType())
+	header.Set("Content-Type", ct)
 
 	// get codec
-	cf, err := h.newCodec(req.ContentType())
+	cf, err := h.newCodec(ct)
 	if err != nil {
 		return errors.InternalServerError("go.micro.client", err.Error())
 	}
 
-	hreq, err := newRequest(addr, req, cf, req.Body(), opts)
+	hreq, err := newRequest(addr, req, ct, cf, req.Body(), opts)
 	if err != nil {
 		return err
 	}
@@ -151,10 +168,11 @@ func (h *httpClient) stream(ctx context.Context, addr string, req client.Request
 		header = make(http.Header, 2)
 	}
 
+	ct := req.ContentType()
 	// set timeout in nanoseconds
 	header.Set("Timeout", fmt.Sprintf("%d", opts.RequestTimeout))
 	// set the content type for the request
-	header.Set("Content-Type", req.ContentType())
+	header.Set("Content-Type", ct)
 
 	// get codec
 	cf, err := h.newCodec(req.ContentType())
@@ -178,7 +196,8 @@ func (h *httpClient) stream(ctx context.Context, addr string, req client.Request
 		closed:  make(chan bool),
 		opts:    opts,
 		conn:    cc,
-		codec:   cf,
+		ct:      ct,
+		cf:      cf,
 		header:  header,
 		reader:  bufio.NewReader(cc),
 		request: req,
@@ -559,39 +578,4 @@ func NewClient(opts ...client.Option) client.Client {
 	}
 
 	return c
-}
-
-func parseRsp(ctx context.Context, hrsp *http.Response, cf codec.Codec, rsp interface{}, opts client.CallOptions) error {
-	b, err := ioutil.ReadAll(hrsp.Body)
-	if err != nil {
-		return errors.InternalServerError("go.micro.client", err.Error())
-	}
-
-	if hrsp.StatusCode < 400 {
-		// unmarshal
-		if err := cf.Unmarshal(b, rsp); err != nil {
-			return errors.InternalServerError("go.micro.client", err.Error())
-		}
-		return nil
-	}
-
-	errmap, ok := opts.Context.Value(errorMapKey{}).(map[string]interface{})
-	if !ok || errmap == nil {
-		// user not provide map of errors
-		// id: req.Service() ??
-		return errors.New("go.micro.client", string(b), int32(hrsp.StatusCode))
-	}
-
-	if err, ok = errmap[fmt.Sprintf("%d", hrsp.StatusCode)].(error); !ok {
-		err, ok = errmap["default"].(error)
-	}
-	if !ok {
-		return errors.New("go.micro.client", string(b), int32(hrsp.StatusCode))
-	}
-
-	if cerr := cf.Unmarshal(b, err); cerr != nil {
-		return errors.InternalServerError("go.micro.client", cerr.Error())
-	}
-
-	return err
 }

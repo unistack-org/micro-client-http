@@ -15,7 +15,7 @@ type Request struct {
 
 func TestValidPath(t *testing.T) {
 	req := &Request{Name: "vtolstov", Field1: "field1", Field2: "field2", Field3: 10}
-	p, m, err := newPathRequest("/api/v1/{name}/list", "GET", "", req)
+	p, m, err := newPathRequest("/api/v1/{name}/list", "GET", "", req, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +32,7 @@ func TestValidPath(t *testing.T) {
 
 func TestInvalidPath(t *testing.T) {
 	req := &Request{Name: "vtolstov", Field1: "field1", Field2: "field2", Field3: 10}
-	p, m, err := newPathRequest("/api/v1/{xname}/list", "GET", "", req)
+	p, m, err := newPathRequest("/api/v1/{xname}/list", "GET", "", req, nil)
 	if err == nil {
 		t.Fatalf("path param must not be filled")
 	}
