@@ -41,6 +41,7 @@ func newRequest(addr string, req client.Request, ct string, cf codec.Codec, msg 
 	body := "*" // as like google api http annotation
 
 	var tags []string
+	var scheme string
 	u, err := url.Parse(addr)
 	if err != nil {
 		hreq.URL = &url.URL{
@@ -49,6 +50,7 @@ func newRequest(addr string, req client.Request, ct string, cf codec.Codec, msg 
 			Path:   req.Endpoint(),
 		}
 		hreq.Host = addr
+		scheme = "http"
 	} else {
 		ep := req.Endpoint()
 		if opts.Context != nil {
@@ -86,23 +88,25 @@ func newRequest(addr string, req client.Request, ct string, cf codec.Codec, msg 
 		return nil, errors.BadRequest("go.micro.client", err.Error())
 	}
 
-	hreq.URL, err = url.Parse(addr + path)
+	if scheme != "" {
+		hreq.URL, err = url.Parse(scheme + "://" + addr + path)
+	} else {
+		hreq.URL, err = url.Parse(addr + path)
+	}
 	if err != nil {
 		return nil, errors.BadRequest("go.micro.client", err.Error())
 	}
 
-	var b []byte
-
 	// marshal request is struct not empty
 	if nmsg != nil {
+		var b []byte
 		b, err = cf.Marshal(nmsg)
 		if err != nil {
 			return nil, errors.BadRequest("go.micro.client", err.Error())
 		}
+		hreq.Body = ioutil.NopCloser(bytes.NewBuffer(b))
+		hreq.ContentLength = int64(len(b))
 	}
-
-	hreq.Body = ioutil.NopCloser(bytes.NewBuffer(b))
-	hreq.ContentLength = int64(len(b))
 
 	return hreq, nil
 }

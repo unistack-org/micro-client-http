@@ -28,6 +28,10 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 		return "", nil, err
 	}
 
+	if len(tpl.Fields) > 0 && msg == nil {
+		return "", nil, fmt.Errorf("nil message but path params requested: %v", path)
+	}
+
 	fieldsmap := make(map[string]string, len(tpl.Fields))
 	for _, v := range tpl.Fields {
 		fieldsmap[v] = ""
@@ -95,7 +99,7 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 	// check not filled stuff
 	for k, v := range fieldsmap {
 		if v == "" {
-			return "", nil, fmt.Errorf("path param %s not filled %s", k, v)
+			return "", nil, fmt.Errorf("path param %s not filled", k)
 		}
 	}
 
