@@ -34,6 +34,7 @@ type httpClient struct {
 	opts    client.Options
 	dialer  *net.Dialer
 	httpcli *http.Client
+	init    bool
 }
 
 func newRequest(addr string, req client.Request, ct string, cf codec.Codec, msg interface{}, opts client.CallOptions) (*http.Request, error) {
@@ -217,9 +218,32 @@ func (h *httpClient) newCodec(ct string) (codec.Codec, error) {
 }
 
 func (h *httpClient) Init(opts ...client.Option) error {
+	if len(opts) == 0 && h.init {
+		return nil
+	}
 	for _, o := range opts {
 		o(&h.opts)
 	}
+
+	if err := h.opts.Broker.Init(); err != nil {
+		return err
+	}
+	if err := h.opts.Tracer.Init(); err != nil {
+		return err
+	}
+	if err := h.opts.Router.Init(); err != nil {
+		return err
+	}
+	if err := h.opts.Logger.Init(); err != nil {
+		return err
+	}
+	if err := h.opts.Meter.Init(); err != nil {
+		return err
+	}
+	if err := h.opts.Transport.Init(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
