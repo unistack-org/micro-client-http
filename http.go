@@ -190,7 +190,7 @@ func (h *httpClient) stream(ctx context.Context, addr string, req client.Request
 	if err == nil && u.Scheme != "" && u.Host != "" {
 		dialAddr = u.Host
 	}
-	cc, err := h.dialer.DialContext(ctx, "tcp", addr)
+	cc, err := (h.httpcli.Transport).(*http.Transport).DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return nil, errors.InternalServerError("go.micro.client", fmt.Sprintf("Error dialing: %v", err))
 	}
@@ -587,17 +587,30 @@ func NewClient(opts ...client.Option) client.Client {
 		opts: options,
 	}
 
+	dialer, ok := options.Context.Value(httpDialerKey{}).(*net.Dialer)
+	if !ok {
+		dialer = &net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}
+	}
+
 	if httpcli, ok := options.Context.Value(httpClientKey{}).(*http.Client); ok {
 		rc.httpcli = httpcli
 	} else {
-		rc.httpcli = http.DefaultClient
+		tr := &http.Transport{
+			Proxy:                 http.ProxyFromEnvironment,
+			DialContext:           dialer.DialContext,
+			ForceAttemptHTTP2:     true,
+			MaxConnsPerHost:       100,
+			MaxIdleConns:          20,
+			IdleConnTimeout:       60 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+			TLSClientConfig:       options.TLSConfig,
+		}
+		rc.httpcli = &http.Client{Transport: tr}
 	}
-	if dialer, ok := options.Context.Value(httpDialerKey{}).(*net.Dialer); ok {
-		rc.dialer = dialer
-	} else {
-		rc.dialer = &net.Dialer{}
-	}
-
 	c := client.Client(rc)
 
 	// wrap in reverse

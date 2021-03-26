@@ -1,7 +1,6 @@
 package http
 
 import (
-	"crypto/tls"
 	"net"
 	"net/http"
 
@@ -33,28 +32,21 @@ type tlsAuth struct{}
 type maxRecvMsgSizeKey struct{}
 type maxSendMsgSizeKey struct{}
 
-// maximum streams on a connectioin
+// PoolMaxStreams maximum streams on a connectioin
 func PoolMaxStreams(n int) client.Option {
 	return client.SetOption(poolMaxStreams{}, n)
 }
 
-// maximum idle conns of a pool
+// PoolMaxIdle maximum idle conns of a pool
 func PoolMaxIdle(d int) client.Option {
 	return client.SetOption(poolMaxIdle{}, d)
 }
 
-// AuthTLS should be used to setup a secure authentication using TLS
-func AuthTLS(t *tls.Config) client.Option {
-	return client.SetOption(tlsAuth{}, t)
-}
-
-//
 // MaxRecvMsgSize set the maximum size of message that client can receive.
 func MaxRecvMsgSize(s int) client.Option {
 	return client.SetOption(maxRecvMsgSizeKey{}, s)
 }
 
-//
 // MaxSendMsgSize set the maximum size of message that client can send.
 func MaxSendMsgSize(s int) client.Option {
 	return client.SetOption(maxSendMsgSizeKey{}, s)
