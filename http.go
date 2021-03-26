@@ -598,6 +598,7 @@ func NewClient(opts ...client.Option) client.Client {
 	if httpcli, ok := options.Context.Value(httpClientKey{}).(*http.Client); ok {
 		rc.httpcli = httpcli
 	} else {
+		// TODO customTransport := http.DefaultTransport.(*http.Transport).Clone()
 		tr := &http.Transport{
 			Proxy:                 http.ProxyFromEnvironment,
 			DialContext:           dialer.DialContext,
