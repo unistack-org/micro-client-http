@@ -98,13 +98,18 @@ func newRequest(addr string, req client.Request, ct string, cf codec.Codec, msg 
 		return nil, errors.BadRequest("go.micro.client", err.Error())
 	}
 
-	// marshal request is struct not empty
-	if nmsg != nil {
-		var b []byte
+	var b []byte
+
+	if ct == "x-www-form-urlencoded" {
+		fmt.Printf("XXXXX %#+v\n", nmsg)
+	} else if nmsg != nil {
 		b, err = cf.Marshal(nmsg)
 		if err != nil {
 			return nil, errors.BadRequest("go.micro.client", err.Error())
 		}
+	}
+
+	if len(b) > 0 {
 		hreq.Body = ioutil.NopCloser(bytes.NewBuffer(b))
 		hreq.ContentLength = int64(len(b))
 	}
@@ -114,7 +119,7 @@ func newRequest(addr string, req client.Request, ct string, cf codec.Codec, msg 
 
 func (h *httpClient) call(ctx context.Context, addr string, req client.Request, rsp interface{}, opts client.CallOptions) error {
 	header := make(http.Header, 2)
-	if md, ok := metadata.FromContext(ctx); ok {
+	if md, ok := metadata.FromOutgoingContext(ctx); ok {
 		for k, v := range md {
 			header.Set(k, v)
 		}
@@ -127,8 +132,16 @@ func (h *httpClient) call(ctx context.Context, addr string, req client.Request, 
 	// set the content type for the request
 	header.Set("Content-Type", ct)
 
+	var cf codec.Codec
+	var err error
 	// get codec
-	cf, err := h.newCodec(ct)
+	switch ct {
+	case "x-www-form-urlencoded":
+		cf, err = h.newCodec(DefaultContentType)
+	default:
+		cf, err = h.newCodec(ct)
+	}
+
 	if err != nil {
 		return errors.InternalServerError("go.micro.client", err.Error())
 	}
@@ -164,7 +177,7 @@ func (h *httpClient) call(ctx context.Context, addr string, req client.Request, 
 func (h *httpClient) stream(ctx context.Context, addr string, req client.Request, opts client.CallOptions) (client.Stream, error) {
 	var header http.Header
 
-	if md, ok := metadata.FromContext(ctx); ok {
+	if md, ok := metadata.FromOutgoingContext(ctx); ok {
 		header = make(http.Header, len(md)+2)
 		for k, v := range md {
 			header.Set(k, v)
@@ -255,8 +268,8 @@ func (h *httpClient) NewMessage(topic string, msg interface{}, opts ...client.Me
 	return newHTTPMessage(topic, msg, h.opts.ContentType, opts...)
 }
 
-func (h *httpClient) NewRequest(service, method string, req interface{}, reqOpts ...client.RequestOption) client.Request {
-	return newHTTPRequest(service, method, req, h.opts.ContentType, reqOpts...)
+func (h *httpClient) NewRequest(service, method string, req interface{}, opts ...client.RequestOption) client.Request {
+	return newHTTPRequest(service, method, req, h.opts.ContentType, opts...)
 }
 
 func (h *httpClient) Call(ctx context.Context, req client.Request, rsp interface{}, opts ...client.CallOption) error {
@@ -525,7 +538,7 @@ func (h *httpClient) Stream(ctx context.Context, req client.Request, opts ...cli
 func (h *httpClient) Publish(ctx context.Context, p client.Message, opts ...client.PublishOption) error {
 	options := client.NewPublishOptions(opts...)
 
-	md, ok := metadata.FromContext(ctx)
+	md, ok := metadata.FromOutgoingContext(ctx)
 	if !ok {
 		md = metadata.New(2)
 	}
