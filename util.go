@@ -87,6 +87,10 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 			t.name = strings.ToLower(fld.Name)
 		}
 
+		if !val.IsValid() || val.IsZero() {
+			continue
+		}
+
 		if _, ok := fieldsmap[t.name]; ok {
 			fieldsmap[t.name] = fmt.Sprintf("%v", val.Interface())
 		} else if (body == "*" || body == t.name) && method != http.MethodGet {

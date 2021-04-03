@@ -19,6 +19,7 @@ import (
 	"github.com/unistack-org/micro/v3/errors"
 	"github.com/unistack-org/micro/v3/metadata"
 	"github.com/unistack-org/micro/v3/router"
+	rutil "github.com/unistack-org/micro/v3/util/reflect"
 )
 
 var (
@@ -100,12 +101,18 @@ func newRequest(addr string, req client.Request, ct string, cf codec.Codec, msg 
 
 	var b []byte
 
-	if ct == "x-www-form-urlencoded" {
-		fmt.Printf("XXXXX %#+v\n", nmsg)
-	} else if nmsg != nil {
-		b, err = cf.Marshal(nmsg)
-		if err != nil {
-			return nil, errors.BadRequest("go.micro.client", err.Error())
+	if nmsg != nil {
+		if ct == "application/x-www-form-urlencoded" {
+			data, err := rutil.StructURLValues(nmsg, "", tags)
+			if err != nil {
+				return nil, errors.BadRequest("go.micro.client", err.Error())
+			}
+			b = []byte(data.Encode())
+		} else {
+			b, err = cf.Marshal(nmsg)
+			if err != nil {
+				return nil, errors.BadRequest("go.micro.client", err.Error())
+			}
 		}
 	}
 
@@ -136,7 +143,7 @@ func (h *httpClient) call(ctx context.Context, addr string, req client.Request, 
 	var err error
 	// get codec
 	switch ct {
-	case "x-www-form-urlencoded":
+	case "application/x-www-form-urlencoded":
 		cf, err = h.newCodec(DefaultContentType)
 	default:
 		cf, err = h.newCodec(ct)
