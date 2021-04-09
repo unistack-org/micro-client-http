@@ -133,6 +133,9 @@ func (h *httpClient) call(ctx context.Context, addr string, req client.Request, 
 	}
 
 	ct := req.ContentType()
+	if len(opts.ContentType) > 0 {
+		ct = opts.ContentType
+	}
 
 	// set timeout in nanoseconds
 	header.Set("Timeout", fmt.Sprintf("%d", opts.RequestTimeout))
@@ -194,6 +197,10 @@ func (h *httpClient) stream(ctx context.Context, addr string, req client.Request
 	}
 
 	ct := req.ContentType()
+	if len(opts.ContentType) > 0 {
+		ct = opts.ContentType
+	}
+
 	// set timeout in nanoseconds
 	header.Set("Timeout", fmt.Sprintf("%d", opts.RequestTimeout))
 	// set the content type for the request
