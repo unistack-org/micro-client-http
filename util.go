@@ -160,15 +160,23 @@ func newTemplate(path string) (util.Template, error) {
 }
 
 func parseRsp(ctx context.Context, hrsp *http.Response, cf codec.Codec, rsp interface{}, opts client.CallOptions) error {
+	// fast path return
+	if hrsp.StatusCode == http.StatusNoContent {
+		return nil
+	}
+
 	b, err := ioutil.ReadAll(hrsp.Body)
 	if err != nil {
 		return errors.InternalServerError("go.micro.client", err.Error())
 	}
 
 	if hrsp.StatusCode < 400 {
-		// unmarshal
-		if err := cf.Unmarshal(b, rsp); err != nil {
-			return errors.InternalServerError("go.micro.client", err.Error())
+		// unmarshal only if body not nil
+		if len(b) > 0 {
+			// unmarshal
+			if err := cf.Unmarshal(b, rsp); err != nil {
+				return errors.InternalServerError("go.micro.client", err.Error())
+			}
 		}
 		return nil
 	}
@@ -187,8 +195,12 @@ func parseRsp(ctx context.Context, hrsp *http.Response, cf codec.Codec, rsp inte
 		return errors.New("go.micro.client", string(b), int32(hrsp.StatusCode))
 	}
 
-	if cerr := cf.Unmarshal(b, err); cerr != nil {
-		return errors.InternalServerError("go.micro.client", cerr.Error())
+	if len(b) > 0 {
+		if cerr := cf.Unmarshal(b, err); cerr != nil {
+			err = errors.InternalServerError("go.micro.client", cerr.Error())
+		}
+	} else {
+		err = errors.New("go.micro.client", string(b), int32(hrsp.StatusCode))
 	}
 
 	return err
