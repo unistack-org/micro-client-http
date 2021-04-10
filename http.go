@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/unistack-org/micro/v3/broker"
@@ -147,9 +148,9 @@ func (h *httpClient) call(ctx context.Context, addr string, req client.Request, 
 	// get codec
 	switch ct {
 	case "application/x-www-form-urlencoded":
-		cf, err = h.newCodec(DefaultContentType)
+		cf, err = h.newCodec(strings.Split(DefaultContentType, ";")[0])
 	default:
-		cf, err = h.newCodec(ct)
+		cf, err = h.newCodec(strings.Split(ct, ";")[0])
 	}
 
 	if err != nil {
@@ -207,7 +208,7 @@ func (h *httpClient) stream(ctx context.Context, addr string, req client.Request
 	header.Set("Content-Type", ct)
 
 	// get codec
-	cf, err := h.newCodec(req.ContentType())
+	cf, err := h.newCodec(strings.Split(req.ContentType(), ";")[0])
 	if err != nil {
 		return nil, errors.InternalServerError("go.micro.client", err.Error())
 	}
@@ -559,7 +560,7 @@ func (h *httpClient) Publish(ctx context.Context, p client.Message, opts ...clie
 	md["Content-Type"] = p.ContentType()
 	md["Micro-Topic"] = p.Topic()
 
-	cf, err := h.newCodec(p.ContentType())
+	cf, err := h.newCodec(strings.Split(p.ContentType(), ";")[0])
 	if err != nil {
 		return errors.InternalServerError("go.micro.client", err.Error())
 	}

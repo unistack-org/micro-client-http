@@ -15,7 +15,6 @@ type httpRequest struct {
 
 func newHTTPRequest(service, method string, request interface{}, contentType string, opts ...client.RequestOption) client.Request {
 	options := client.NewRequestOptions(opts...)
-
 	if len(options.ContentType) == 0 {
 		options.ContentType = contentType
 	}
