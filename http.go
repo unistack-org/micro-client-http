@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/unistack-org/micro/v3/broker"
@@ -37,6 +38,7 @@ type httpClient struct {
 	dialer  *net.Dialer
 	httpcli *http.Client
 	init    bool
+	sync.RWMutex
 }
 
 func newRequest(addr string, req client.Request, ct string, cf codec.Codec, msg interface{}, opts client.CallOptions) (*http.Request, error) {
@@ -148,9 +150,9 @@ func (h *httpClient) call(ctx context.Context, addr string, req client.Request, 
 	// get codec
 	switch ct {
 	case "application/x-www-form-urlencoded":
-		cf, err = h.newCodec(strings.Split(DefaultContentType, ";")[0])
+		cf, err = h.newCodec(DefaultContentType)
 	default:
-		cf, err = h.newCodec(strings.Split(ct, ";")[0])
+		cf, err = h.newCodec(ct)
 	}
 
 	if err != nil {
@@ -208,7 +210,7 @@ func (h *httpClient) stream(ctx context.Context, addr string, req client.Request
 	header.Set("Content-Type", ct)
 
 	// get codec
-	cf, err := h.newCodec(strings.Split(req.ContentType(), ";")[0])
+	cf, err := h.newCodec(ct)
 	if err != nil {
 		return nil, errors.InternalServerError("go.micro.client", err.Error())
 	}
@@ -238,6 +240,13 @@ func (h *httpClient) stream(ctx context.Context, addr string, req client.Request
 }
 
 func (h *httpClient) newCodec(ct string) (codec.Codec, error) {
+	h.RLock()
+	defer h.RUnlock()
+
+	if idx := strings.IndexRune(ct, ';'); idx >= 0 {
+		ct = ct[:idx]
+	}
+
 	if c, ok := h.opts.Codecs[ct]; ok {
 		return c, nil
 	}
@@ -560,7 +569,7 @@ func (h *httpClient) Publish(ctx context.Context, p client.Message, opts ...clie
 	md["Content-Type"] = p.ContentType()
 	md["Micro-Topic"] = p.Topic()
 
-	cf, err := h.newCodec(strings.Split(p.ContentType(), ";")[0])
+	cf, err := h.newCodec(p.ContentType())
 	if err != nil {
 		return errors.InternalServerError("go.micro.client", err.Error())
 	}
