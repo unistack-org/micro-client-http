@@ -3,14 +3,13 @@ package http
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"reflect"
 	"strings"
 	"sync"
 
 	"github.com/unistack-org/micro/v3/client"
-	"github.com/unistack-org/micro/v3/codec"
 	"github.com/unistack-org/micro/v3/errors"
 	rutil "github.com/unistack-org/micro/v3/util/reflect"
 	util "github.com/unistack-org/micro/v3/util/router"
@@ -159,48 +158,46 @@ func newTemplate(path string) (util.Template, error) {
 	return tpl, nil
 }
 
-func parseRsp(ctx context.Context, hrsp *http.Response, cf codec.Codec, rsp interface{}, opts client.CallOptions) error {
+func (h *httpClient) parseRsp(ctx context.Context, hrsp *http.Response, rsp interface{}, opts client.CallOptions) error {
 	// fast path return
 	if hrsp.StatusCode == http.StatusNoContent {
 		return nil
 	}
 
-	b, err := ioutil.ReadAll(hrsp.Body)
+	ct := DefaultContentType
+
+	if htype := hrsp.Header.Get("Content-Type"); htype != "" {
+		ct = htype
+	}
+
+	cf, err := h.newCodec(ct)
 	if err != nil {
 		return errors.InternalServerError("go.micro.client", err.Error())
 	}
 
 	if hrsp.StatusCode < 400 {
-		// unmarshal only if body not nil
-		if len(b) > 0 {
-			// unmarshal
-			if err := cf.Unmarshal(b, rsp); err != nil {
-				return errors.InternalServerError("go.micro.client", err.Error())
-			}
+		if err := cf.ReadBody(hrsp.Body, rsp); err != nil {
+			return errors.InternalServerError("go.micro.client", err.Error())
 		}
 		return nil
 	}
 
 	errmap, ok := opts.Context.Value(errorMapKey{}).(map[string]interface{})
-	if !ok || errmap == nil {
-		// user not provide map of errors
-		// id: req.Service() ??
-		return errors.New("go.micro.client", string(b), int32(hrsp.StatusCode))
-	}
-
-	if err, ok = errmap[fmt.Sprintf("%d", hrsp.StatusCode)].(error); !ok {
-		err, ok = errmap["default"].(error)
-	}
-	if !ok {
-		return errors.New("go.micro.client", string(b), int32(hrsp.StatusCode))
-	}
-
-	if len(b) > 0 {
-		if cerr := cf.Unmarshal(b, err); cerr != nil {
-			err = errors.InternalServerError("go.micro.client", cerr.Error())
+	if ok && errmap != nil {
+		if err, ok = errmap[fmt.Sprintf("%d", hrsp.StatusCode)].(error); !ok {
+			err, ok = errmap["default"].(error)
 		}
-	} else {
-		err = errors.New("go.micro.client", string(b), int32(hrsp.StatusCode))
+	}
+	if err == nil {
+		buf, err := io.ReadAll(hrsp.Body)
+		if err != nil {
+			errors.InternalServerError("go.micro.client", err.Error())
+		}
+		return errors.New("go.micro.client", string(buf), int32(hrsp.StatusCode))
+	}
+
+	if cerr := cf.ReadBody(hrsp.Body, err); cerr != nil {
+		err = errors.InternalServerError("go.micro.client", cerr.Error())
 	}
 
 	return err

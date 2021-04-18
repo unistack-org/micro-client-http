@@ -21,7 +21,6 @@ import (
 	"github.com/unistack-org/micro/v3/errors"
 	"github.com/unistack-org/micro/v3/metadata"
 	"github.com/unistack-org/micro/v3/router"
-	rutil "github.com/unistack-org/micro/v3/util/reflect"
 )
 
 var (
@@ -102,21 +101,9 @@ func newRequest(addr string, req client.Request, ct string, cf codec.Codec, msg 
 		return nil, errors.BadRequest("go.micro.client", err.Error())
 	}
 
-	var b []byte
-
-	if nmsg != nil {
-		if ct == "application/x-www-form-urlencoded" {
-			data, err := rutil.StructURLValues(nmsg, "", tags)
-			if err != nil {
-				return nil, errors.BadRequest("go.micro.client", err.Error())
-			}
-			b = []byte(data.Encode())
-		} else {
-			b, err = cf.Marshal(nmsg)
-			if err != nil {
-				return nil, errors.BadRequest("go.micro.client", err.Error())
-			}
-		}
+	b, err := cf.Marshal(nmsg)
+	if err != nil {
+		return nil, errors.BadRequest("go.micro.client", err.Error())
 	}
 
 	if len(b) > 0 {
@@ -145,20 +132,10 @@ func (h *httpClient) call(ctx context.Context, addr string, req client.Request, 
 	// set the content type for the request
 	header.Set("Content-Type", ct)
 
-	var cf codec.Codec
-	var err error
-	// get codec
-	switch ct {
-	case "application/x-www-form-urlencoded":
-		cf, err = h.newCodec(DefaultContentType)
-	default:
-		cf, err = h.newCodec(ct)
-	}
-
+	cf, err := h.newCodec(ct)
 	if err != nil {
 		return errors.InternalServerError("go.micro.client", err.Error())
 	}
-
 	hreq, err := newRequest(addr, req, ct, cf, req.Body(), opts)
 	if err != nil {
 		return err
@@ -184,7 +161,13 @@ func (h *httpClient) call(ctx context.Context, addr string, req client.Request, 
 
 	defer hrsp.Body.Close()
 
-	return parseRsp(ctx, hrsp, cf, rsp, opts)
+	if ct == "application/x-www-form-urlencoded" {
+		cf, err = h.newCodec(DefaultContentType)
+		if err != nil {
+			return errors.InternalServerError("go.micro.client", err.Error())
+		}
+	}
+	return h.parseRsp(ctx, hrsp, rsp, opts)
 }
 
 func (h *httpClient) stream(ctx context.Context, addr string, req client.Request, opts client.CallOptions) (client.Stream, error) {

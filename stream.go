@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"sync"
@@ -89,7 +90,7 @@ func (h *httpStream) Recv(msg interface{}) error {
 	}
 	defer hrsp.Body.Close()
 
-	return parseRsp(h.context, hrsp, h.cf, msg, h.opts)
+	return h.parseRsp(h.context, hrsp, h.cf, msg, h.opts)
 }
 
 func (h *httpStream) Error() error {
@@ -106,4 +107,40 @@ func (h *httpStream) Close() error {
 		close(h.closed)
 		return h.conn.Close()
 	}
+}
+
+func (h *httpStream) parseRsp(ctx context.Context, hrsp *http.Response, cf codec.Codec, rsp interface{}, opts client.CallOptions) error {
+	var err error
+
+	// fast path return
+	if hrsp.StatusCode == http.StatusNoContent {
+		return nil
+	}
+
+	if hrsp.StatusCode < 400 {
+		if err = cf.ReadBody(hrsp.Body, rsp); err != nil {
+			return errors.InternalServerError("go.micro.client", err.Error())
+		}
+		return nil
+	}
+
+	errmap, ok := opts.Context.Value(errorMapKey{}).(map[string]interface{})
+	if ok && errmap != nil {
+		if err, ok = errmap[fmt.Sprintf("%d", hrsp.StatusCode)].(error); !ok {
+			err, ok = errmap["default"].(error)
+		}
+	}
+	if err == nil {
+		buf, err := io.ReadAll(hrsp.Body)
+		if err != nil {
+			errors.InternalServerError("go.micro.client", err.Error())
+		}
+		return errors.New("go.micro.client", string(buf), int32(hrsp.StatusCode))
+	}
+
+	if cerr := cf.ReadBody(hrsp.Body, err); cerr != nil {
+		err = errors.InternalServerError("go.micro.client", cerr.Error())
+	}
+
+	return err
 }
