@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"reflect"
 	"strings"
 	"sync"
@@ -31,6 +32,7 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 		return "", nil, fmt.Errorf("nil message but path params requested: %v", path)
 	}
 
+	fieldsmapskip := make(map[string]struct{})
 	fieldsmap := make(map[string]string, len(tpl.Fields))
 	for _, v := range tpl.Fields {
 		fieldsmap[v] = ""
@@ -52,7 +54,7 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 		tnmsg = tnmsg.Elem()
 	}
 
-	values := make(map[string]string)
+	values := url.Values{}
 	// copy cycle
 	for i := 0; i < tmsg.NumField(); i++ {
 		val := tmsg.Field(i)
@@ -91,17 +93,31 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 		}
 
 		if _, ok := fieldsmap[t.name]; ok {
-			fieldsmap[t.name] = fmt.Sprintf("%v", val.Interface())
+			if val.Type().Kind() == reflect.Slice {
+				for idx := 0; idx < val.Len(); idx++ {
+					values.Add(t.name, fmt.Sprintf("%v", val.Index(idx).Interface()))
+				}
+				fieldsmapskip[t.name] = struct{}{}
+			} else {
+				fieldsmap[t.name] = fmt.Sprintf("%v", val.Interface())
+			}
 		} else if (body == "*" || body == t.name) && method != http.MethodGet {
 			tnmsg.Field(i).Set(val)
 		} else {
-			values[t.name] = fmt.Sprintf("%v", val.Interface())
+			if val.Type().Kind() == reflect.Slice {
+				for idx := 0; idx < val.Len(); idx++ {
+					values.Add(t.name, fmt.Sprintf("%v", val.Index(idx).Interface()))
+				}
+			} else {
+				values.Add(t.name, fmt.Sprintf("%v", val.Interface()))
+			}
 		}
 	}
 
 	// check not filled stuff
 	for k, v := range fieldsmap {
-		if v == "" {
+		_, ok := fieldsmapskip[k]
+		if !ok && v == "" {
 			return "", nil, fmt.Errorf("path param %s not filled", k)
 		}
 	}
@@ -110,23 +126,17 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 	for _, fld := range tpl.Pool {
 		_, _ = b.WriteRune('/')
 		if v, ok := fieldsmap[fld]; ok {
-			_, _ = b.WriteString(v)
+			if v != "" {
+				_, _ = b.WriteString(v)
+			}
 		} else {
 			_, _ = b.WriteString(fld)
 		}
 	}
 
-	idx := 0
-	for k, v := range values {
-		if idx == 0 {
-			_, _ = b.WriteRune('?')
-		} else {
-			_, _ = b.WriteRune('&')
-		}
-		_, _ = b.WriteString(k)
-		_, _ = b.WriteRune('=')
-		_, _ = b.WriteString(v)
-		idx++
+	if len(values) > 0 {
+		_, _ = b.WriteRune('?')
+		_, _ = b.WriteString(values.Encode())
 	}
 
 	if rutil.IsZero(nmsg) {
