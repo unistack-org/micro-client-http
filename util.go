@@ -74,9 +74,13 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 			// special
 			switch tn {
 			case "protobuf": // special
-				t = &tag{key: tn, name: tp[3][5:], opts: append(tp[:3], tp[4:]...)}
+				for _, p := range tp {
+					if idx := strings.Index(p, "name="); idx > 0 {
+						t = &tag{key: tn, name: p[idx:]}
+					}
+				}
 			default:
-				t = &tag{key: tn, name: tp[0], opts: tp[1:]}
+				t = &tag{key: tn, name: tp[0]}
 			}
 			if t.name != "" {
 				break
@@ -216,5 +220,4 @@ func (h *httpClient) parseRsp(ctx context.Context, hrsp *http.Response, rsp inte
 type tag struct {
 	key  string
 	name string
-	opts []string
 }
