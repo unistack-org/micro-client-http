@@ -26,26 +26,27 @@ var (
 )
 
 type poolMaxStreams struct{}
-type poolMaxIdle struct{}
-type codecsKey struct{}
-type tlsAuth struct{}
-type maxRecvMsgSizeKey struct{}
-type maxSendMsgSizeKey struct{}
 
 // PoolMaxStreams maximum streams on a connectioin
 func PoolMaxStreams(n int) client.Option {
 	return client.SetOption(poolMaxStreams{}, n)
 }
 
+type poolMaxIdle struct{}
+
 // PoolMaxIdle maximum idle conns of a pool
 func PoolMaxIdle(d int) client.Option {
 	return client.SetOption(poolMaxIdle{}, d)
 }
 
+type maxRecvMsgSizeKey struct{}
+
 // MaxRecvMsgSize set the maximum size of message that client can receive.
 func MaxRecvMsgSize(s int) client.Option {
 	return client.SetOption(maxRecvMsgSizeKey{}, s)
 }
+
+type maxSendMsgSizeKey struct{}
 
 // MaxSendMsgSize set the maximum size of message that client can send.
 func MaxSendMsgSize(s int) client.Option {
@@ -54,12 +55,14 @@ func MaxSendMsgSize(s int) client.Option {
 
 type httpClientKey struct{}
 
+// nolint: golint
 func HTTPClient(c *http.Client) client.Option {
 	return client.SetOption(httpClientKey{}, c)
 }
 
 type httpDialerKey struct{}
 
+// nolint: golint
 func HTTPDialer(d *net.Dialer) client.Option {
 	return client.SetOption(httpDialerKey{}, d)
 }

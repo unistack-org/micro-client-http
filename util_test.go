@@ -18,8 +18,8 @@ func TestNewPathRequest(t *testing.T) {
 	type Message struct {
 		Name string `json:"name"`
 		Val1 string `protobuf:"bytes,1,opt,name=val1,proto3" json:"val1"`
-		Val2 int64
 		Val3 []string
+		Val2 int64
 	}
 
 	omsg := &Message{Name: "test_name", Val1: "test_val1", Val2: 100, Val3: []string{"slice"}}
@@ -45,8 +45,8 @@ func TestNewPathVarRequest(t *testing.T) {
 	type Message struct {
 		Name string `json:"name"`
 		Val1 string `protobuf:"bytes,1,opt,name=val1,proto3" json:"val1"`
-		Val2 int64
 		Val3 []string
+		Val2 int64
 	}
 
 	omsg := &Message{Name: "test_name", Val1: "test_val1", Val2: 100, Val3: []string{"slice"}}

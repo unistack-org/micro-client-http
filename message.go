@@ -5,9 +5,9 @@ import (
 )
 
 type httpMessage struct {
+	payload     interface{}
 	topic       string
 	contentType string
-	payload     interface{}
 }
 
 func newHTTPMessage(topic string, payload interface{}, contentType string, opts ...client.MessageOption) client.Message {

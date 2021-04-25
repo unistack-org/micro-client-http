@@ -16,24 +16,21 @@ import (
 
 // Implements the streamer interface
 type httpStream struct {
-	sync.RWMutex
-	address string
-	opts    client.CallOptions
-	ct      string
-	cf      codec.Codec
-	context context.Context
-	header  http.Header
-	seq     uint64
-	closed  chan bool
 	err     error
 	conn    net.Conn
-	reader  *bufio.Reader
+	cf      codec.Codec
+	context context.Context
 	request client.Request
+	header  http.Header
+	closed  chan bool
+	reader  *bufio.Reader
+	address string
+	ct      string
+	opts    client.CallOptions
+	sync.RWMutex
 }
 
-var (
-	errShutdown = fmt.Errorf("connection is shut down")
-)
+var errShutdown = fmt.Errorf("connection is shut down")
 
 func (h *httpStream) isClosed() bool {
 	select {
@@ -112,34 +109,39 @@ func (h *httpStream) Close() error {
 func (h *httpStream) parseRsp(ctx context.Context, hrsp *http.Response, cf codec.Codec, rsp interface{}, opts client.CallOptions) error {
 	var err error
 
-	// fast path return
-	if hrsp.StatusCode == http.StatusNoContent {
-		return nil
-	}
-
-	if hrsp.StatusCode < 400 {
-		if err = cf.ReadBody(hrsp.Body, rsp); err != nil {
-			return errors.InternalServerError("go.micro.client", err.Error())
+	select {
+	case <-ctx.Done():
+		err = ctx.Err()
+	default:
+		// fast path return
+		if hrsp.StatusCode == http.StatusNoContent {
+			return nil
 		}
-		return nil
-	}
 
-	errmap, ok := opts.Context.Value(errorMapKey{}).(map[string]interface{})
-	if ok && errmap != nil {
-		if err, ok = errmap[fmt.Sprintf("%d", hrsp.StatusCode)].(error); !ok {
-			err, ok = errmap["default"].(error)
+		if hrsp.StatusCode < 400 {
+			if err = cf.ReadBody(hrsp.Body, rsp); err != nil {
+				return errors.InternalServerError("go.micro.client", err.Error())
+			}
+			return nil
 		}
-	}
-	if err == nil {
-		buf, err := io.ReadAll(hrsp.Body)
-		if err != nil {
-			errors.InternalServerError("go.micro.client", err.Error())
-		}
-		return errors.New("go.micro.client", string(buf), int32(hrsp.StatusCode))
-	}
 
-	if cerr := cf.ReadBody(hrsp.Body, err); cerr != nil {
-		err = errors.InternalServerError("go.micro.client", cerr.Error())
+		errmap, ok := opts.Context.Value(errorMapKey{}).(map[string]interface{})
+		if ok && errmap != nil {
+			if err, ok = errmap[fmt.Sprintf("%d", hrsp.StatusCode)].(error); !ok {
+				err, ok = errmap["default"].(error)
+			}
+		}
+		if !ok || err == nil {
+			buf, cerr := io.ReadAll(hrsp.Body)
+			if cerr != nil {
+				return errors.InternalServerError("go.micro.client", cerr.Error())
+			}
+			return errors.New("go.micro.client", string(buf), int32(hrsp.StatusCode))
+		}
+
+		if cerr := cf.ReadBody(hrsp.Body, err); cerr != nil {
+			err = errors.InternalServerError("go.micro.client", cerr.Error())
+		}
 	}
 
 	return err

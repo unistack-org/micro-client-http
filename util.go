@@ -96,13 +96,15 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 			continue
 		}
 
+		// nolint: gocritic
 		if _, ok := fieldsmap[t.name]; ok {
-			if val.Type().Kind() == reflect.Slice {
+			switch val.Type().Kind() {
+			case reflect.Slice:
 				for idx := 0; idx < val.Len(); idx++ {
 					values.Add(t.name, fmt.Sprintf("%v", val.Index(idx).Interface()))
 				}
 				fieldsmapskip[t.name] = struct{}{}
-			} else {
+			default:
 				fieldsmap[t.name] = fmt.Sprintf("%v", val.Interface())
 			}
 		} else if (body == "*" || body == t.name) && method != http.MethodGet {
@@ -173,45 +175,52 @@ func newTemplate(path string) (util.Template, error) {
 }
 
 func (h *httpClient) parseRsp(ctx context.Context, hrsp *http.Response, rsp interface{}, opts client.CallOptions) error {
-	// fast path return
-	if hrsp.StatusCode == http.StatusNoContent {
-		return nil
-	}
+	var err error
 
-	ct := DefaultContentType
-
-	if htype := hrsp.Header.Get("Content-Type"); htype != "" {
-		ct = htype
-	}
-
-	cf, err := h.newCodec(ct)
-	if err != nil {
-		return errors.InternalServerError("go.micro.client", err.Error())
-	}
-
-	if hrsp.StatusCode < 400 {
-		if err := cf.ReadBody(hrsp.Body, rsp); err != nil {
-			return errors.InternalServerError("go.micro.client", err.Error())
+	select {
+	case <-ctx.Done():
+		err = ctx.Err()
+	default:
+		// fast path return
+		if hrsp.StatusCode == http.StatusNoContent {
+			return nil
 		}
-		return nil
-	}
 
-	errmap, ok := opts.Context.Value(errorMapKey{}).(map[string]interface{})
-	if ok && errmap != nil {
-		if err, ok = errmap[fmt.Sprintf("%d", hrsp.StatusCode)].(error); !ok {
-			err, ok = errmap["default"].(error)
-		}
-	}
-	if err == nil {
-		buf, err := io.ReadAll(hrsp.Body)
-		if err != nil {
-			errors.InternalServerError("go.micro.client", err.Error())
-		}
-		return errors.New("go.micro.client", string(buf), int32(hrsp.StatusCode))
-	}
+		ct := DefaultContentType
 
-	if cerr := cf.ReadBody(hrsp.Body, err); cerr != nil {
-		err = errors.InternalServerError("go.micro.client", cerr.Error())
+		if htype := hrsp.Header.Get("Content-Type"); htype != "" {
+			ct = htype
+		}
+
+		cf, cerr := h.newCodec(ct)
+		if cerr != nil {
+			return errors.InternalServerError("go.micro.client", cerr.Error())
+		}
+
+		if hrsp.StatusCode < 400 {
+			if err = cf.ReadBody(hrsp.Body, rsp); err != nil {
+				return errors.InternalServerError("go.micro.client", err.Error())
+			}
+			return nil
+		}
+
+		errmap, ok := opts.Context.Value(errorMapKey{}).(map[string]interface{})
+		if ok && errmap != nil {
+			if err, ok = errmap[fmt.Sprintf("%d", hrsp.StatusCode)].(error); !ok {
+				err, ok = errmap["default"].(error)
+			}
+		}
+		if !ok || err == nil {
+			buf, rerr := io.ReadAll(hrsp.Body)
+			if rerr != nil {
+				return errors.InternalServerError("go.micro.client", rerr.Error())
+			}
+			return errors.New("go.micro.client", string(buf), int32(hrsp.StatusCode))
+		}
+
+		if cerr := cf.ReadBody(hrsp.Body, err); cerr != nil {
+			err = errors.InternalServerError("go.micro.client", cerr.Error())
+		}
 	}
 
 	return err
