@@ -181,9 +181,10 @@ func (h *httpClient) stream(ctx context.Context, addr string, req client.Request
 	if len(opts.ContentType) > 0 {
 		ct = opts.ContentType
 	}
-
 	// set timeout in nanoseconds
-	header.Set("Timeout", fmt.Sprintf("%d", opts.RequestTimeout))
+	if opts.StreamTimeout > time.Duration(0) {
+		header.Set("Timeout", fmt.Sprintf("%d", opts.StreamTimeout))
+	}
 	// set the content type for the request
 	header.Set("Content-Type", ct)
 
@@ -399,22 +400,22 @@ func (h *httpClient) Call(ctx context.Context, req client.Request, rsp interface
 func (h *httpClient) Stream(ctx context.Context, req client.Request, opts ...client.CallOption) (client.Stream, error) {
 	// make a copy of call opts
 	callOpts := h.opts.CallOptions
-	for _, opt := range opts {
-		opt(&callOpts)
+	for _, o := range opts {
+		o(&callOpts)
 	}
 
 	// check if we already have a deadline
 	d, ok := ctx.Deadline()
-	if !ok {
+	if !ok && callOpts.StreamTimeout > time.Duration(0) {
 		var cancel context.CancelFunc
 		// no deadline so we create a new one
-		ctx, cancel = context.WithTimeout(ctx, callOpts.RequestTimeout)
+		ctx, cancel = context.WithTimeout(ctx, callOpts.StreamTimeout)
 		defer cancel()
 	} else {
 		// got a deadline so no need to setup context
 		// but we need to set the timeout we pass along
-		opt := client.WithRequestTimeout(time.Until(d))
-		opt(&callOpts)
+		o := client.WithStreamTimeout(time.Until(d))
+		o(&callOpts)
 	}
 
 	// should we noop right here?
@@ -426,10 +427,7 @@ func (h *httpClient) Stream(ctx context.Context, req client.Request, opts ...cli
 
 	/*
 		// make copy of call method
-		hstream, err := h.stream()
-		if err != nil {
-			return nil, err
-		}
+		hstream := h.stream
 		// wrap the call in reverse
 		for i := len(callOpts.CallWrappers); i > 0; i-- {
 			hstream = callOpts.CallWrappers[i-1](hstream)
