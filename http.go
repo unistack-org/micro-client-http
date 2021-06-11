@@ -573,7 +573,10 @@ func (h *httpClient) Publish(ctx context.Context, p client.Message, opts ...clie
 	return h.opts.Broker.Publish(ctx, topic, &broker.Message{
 		Header: md,
 		Body:   body,
-	}, broker.PublishContext(ctx))
+	},
+		broker.PublishContext(ctx),
+		broker.PublishBodyOnly(options.BodyOnly),
+	)
 }
 
 func (h *httpClient) String() string {
