@@ -240,7 +240,7 @@ func (h *httpClient) parseRsp(ctx context.Context, hrsp *http.Response, rsp inte
 		}
 
 		if cerr := cf.ReadBody(hrsp.Body, rerr); cerr != nil {
-			err = errors.InternalServerError("go.micro.client", cerr.Error())
+			return errors.InternalServerError("go.micro.client", cerr.Error())
 		}
 
 		if err, ok = rerr.(error); !ok {

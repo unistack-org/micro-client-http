@@ -32,10 +32,10 @@ func filterLabel(r []router.Route) []router.Route {
 */
 
 type httpClient struct {
-	opts    client.Options
 	httpcli *http.Client
-	init    bool
+	opts    client.Options
 	sync.RWMutex
+	init bool
 }
 
 func newRequest(addr string, req client.Request, ct string, cf codec.Codec, msg interface{}, opts client.CallOptions) (*http.Request, error) {
