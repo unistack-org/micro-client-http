@@ -21,6 +21,23 @@ var (
 	mu            sync.RWMutex
 )
 
+// Error struct holds error
+type Error struct {
+	err interface{}
+}
+
+// Error func for error interface
+func (err *Error) Error() string {
+	return fmt.Sprintf("%v", err.err)
+}
+
+func GetError(err error) interface{} {
+	if rerr, ok := err.(*Error); ok {
+		return rerr.err
+	}
+	return err
+}
+
 func newPathRequest(path string, method string, body string, msg interface{}, tags []string) (string, interface{}, error) {
 	// parse via https://github.com/googleapis/googleapis/blob/master/google/api/http.proto definition
 	tpl, err := newTemplate(path)
@@ -185,7 +202,6 @@ func (h *httpClient) parseRsp(ctx context.Context, hrsp *http.Response, rsp inte
 		if hrsp.StatusCode == http.StatusNoContent {
 			return nil
 		}
-
 		ct := DefaultContentType
 
 		if htype := hrsp.Header.Get("Content-Type"); htype != "" {
@@ -197,6 +213,7 @@ func (h *httpClient) parseRsp(ctx context.Context, hrsp *http.Response, rsp inte
 			return errors.InternalServerError("go.micro.client", cerr.Error())
 		}
 
+		// succeseful response
 		if hrsp.StatusCode < 400 {
 			if err = cf.ReadBody(hrsp.Body, rsp); err != nil {
 				return errors.InternalServerError("go.micro.client", err.Error())
@@ -204,13 +221,17 @@ func (h *httpClient) parseRsp(ctx context.Context, hrsp *http.Response, rsp inte
 			return nil
 		}
 
+		// response with error
+		var rerr interface{}
 		errmap, ok := opts.Context.Value(errorMapKey{}).(map[string]interface{})
 		if ok && errmap != nil {
-			if err, ok = errmap[fmt.Sprintf("%d", hrsp.StatusCode)].(error); !ok {
-				err, ok = errmap["default"].(error)
+			rerr, ok = errmap[fmt.Sprintf("%d", hrsp.StatusCode)]
+			if !ok {
+				rerr, ok = errmap["default"]
 			}
 		}
-		if !ok || err == nil {
+
+		if !ok || rerr == nil {
 			buf, rerr := io.ReadAll(hrsp.Body)
 			if rerr != nil {
 				return errors.InternalServerError("go.micro.client", rerr.Error())
@@ -218,9 +239,14 @@ func (h *httpClient) parseRsp(ctx context.Context, hrsp *http.Response, rsp inte
 			return errors.New("go.micro.client", string(buf), int32(hrsp.StatusCode))
 		}
 
-		if cerr := cf.ReadBody(hrsp.Body, err); cerr != nil {
+		if cerr := cf.ReadBody(hrsp.Body, rerr); cerr != nil {
 			err = errors.InternalServerError("go.micro.client", cerr.Error())
 		}
+
+		if err, ok = rerr.(error); !ok {
+			err = &Error{rerr}
+		}
+
 	}
 
 	return err
