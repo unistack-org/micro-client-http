@@ -123,22 +123,10 @@ func newRequest(addr string, req client.Request, ct string, cf codec.Codec, msg 
 }
 
 func (h *httpClient) call(ctx context.Context, addr string, req client.Request, rsp interface{}, opts client.CallOptions) error {
-	header := make(http.Header, 2)
-	if md, ok := metadata.FromOutgoingContext(ctx); ok {
-		for k, v := range md {
-			header.Set(k, v)
-		}
-	}
-
 	ct := req.ContentType()
 	if len(opts.ContentType) > 0 {
 		ct = opts.ContentType
 	}
-
-	// set timeout in nanoseconds
-	header.Set("Timeout", fmt.Sprintf("%d", opts.RequestTimeout))
-	// set the content type for the request
-	header.Set("Content-Type", ct)
 
 	cf, err := h.newCodec(ct)
 	if err != nil {
@@ -149,7 +137,16 @@ func (h *httpClient) call(ctx context.Context, addr string, req client.Request, 
 		return err
 	}
 
-	hreq.Header = header
+	if md, ok := metadata.FromOutgoingContext(ctx); ok {
+		for k, v := range md {
+			hreq.Header.Set(k, v)
+		}
+	}
+
+	// set timeout in nanoseconds
+	hreq.Header.Set("Timeout", fmt.Sprintf("%d", opts.RequestTimeout))
+	// set the content type for the request
+	hreq.Header.Set("Content-Type", ct)
 
 	// make the request
 	hrsp, err := h.httpcli.Do(hreq.WithContext(ctx))
