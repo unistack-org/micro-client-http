@@ -72,13 +72,20 @@ func newRequest(addr string, req client.Request, ct string, cf codec.Codec, msg 
 			if t, ok := opts.Context.Value(structTagsKey{}).([]string); ok && len(t) > 0 {
 				tags = t
 			}
+			if md, ok := opts.Context.Value(metadataKey{}).(metadata.Metadata); ok {
+				for k, v := range md {
+					hreq.Header.Set(k, v)
+				}
+			}
 		}
 		hreq.URL, err = u.Parse(ep)
 		if err != nil {
 			return nil, errors.BadRequest("go.micro.client", err.Error())
 		}
 	}
-
+	if opts.AuthToken != "" {
+		hreq.Header.Set("Authorization", opts.AuthToken)
+	}
 	if len(tags) == 0 {
 		switch ct {
 		default:

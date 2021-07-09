@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/unistack-org/micro/v3/client"
+	"github.com/unistack-org/micro/v3/metadata"
 )
 
 var (
@@ -95,4 +96,10 @@ type structTagsKey struct{}
 
 func StructTags(tags []string) client.CallOption {
 	return client.SetCallOption(structTagsKey{}, tags)
+}
+
+type metadataKey struct{}
+
+func Metadata(md metadata.Metadata) client.CallOption {
+	return client.SetCallOption(metadataKey{}, md)
 }
