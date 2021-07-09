@@ -113,7 +113,7 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 			continue
 		}
 
-		// nolint: gocritic
+		// nolint: gocritic, nestif
 		if _, ok := fieldsmap[t.name]; ok {
 			switch val.Type().Kind() {
 			case reflect.Slice:
