@@ -124,7 +124,7 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 			default:
 				fieldsmap[t.name] = fmt.Sprintf("%v", val.Interface())
 			}
-		} else if (body == "*" || body == t.name) && method != http.MethodGet {
+		} else if (body == "*" || body == t.name) && method != http.MethodGet && tnmsg.Field(i).CanSet() {
 			tnmsg.Field(i).Set(val)
 		} else {
 			if val.Type().Kind() == reflect.Slice {
