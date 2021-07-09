@@ -21,7 +21,6 @@ type httpStream struct {
 	cf      codec.Codec
 	context context.Context
 	request client.Request
-	header  http.Header
 	closed  chan bool
 	reader  *bufio.Reader
 	address string
@@ -62,12 +61,10 @@ func (h *httpStream) Send(msg interface{}) error {
 		return errShutdown
 	}
 
-	hreq, err := newRequest(h.address, h.request, h.ct, h.cf, msg, h.opts)
+	hreq, err := newRequest(h.context, h.address, h.request, h.ct, h.cf, msg, h.opts)
 	if err != nil {
 		return err
 	}
-
-	hreq.Header = h.header
 
 	return hreq.Write(h.conn)
 }

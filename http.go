@@ -38,54 +38,38 @@ type httpClient struct {
 	init bool
 }
 
-func newRequest(addr string, req client.Request, ct string, cf codec.Codec, msg interface{}, opts client.CallOptions) (*http.Request, error) {
-	hreq := &http.Request{Method: http.MethodPost}
-	body := "*" // as like google api http annotation
-
+func newRequest(ctx context.Context, addr string, req client.Request, ct string, cf codec.Codec, msg interface{}, opts client.CallOptions) (*http.Request, error) {
 	var tags []string
-	var scheme string
+	scheme := "http"
+	method := http.MethodPost
+	body := "*" // as like google api http annotation
+	host := addr
+	path := req.Endpoint()
 
 	u, err := url.Parse(addr)
-	if err != nil {
-		hreq.URL = &url.URL{
-			Scheme: "http",
-			Host:   addr,
-			Path:   req.Endpoint(),
-		}
-		hreq.Host = addr
-		scheme = "http"
+	if err == nil {
+		scheme = u.Scheme
+		path = u.Path
+		host = u.Host
+	} else {
+		u = &url.URL{Scheme: scheme, Path: path, Host: host}
 	}
 
-	// nolint: nestif
-	if scheme == "" {
-		ep := req.Endpoint()
-		if opts.Context != nil {
-			if m, ok := opts.Context.Value(methodKey{}).(string); ok {
-				hreq.Method = m
-			}
-			if p, ok := opts.Context.Value(pathKey{}).(string); ok {
-				ep = p
-			}
-			if b, ok := opts.Context.Value(bodyKey{}).(string); ok {
-				body = b
-			}
-			if t, ok := opts.Context.Value(structTagsKey{}).([]string); ok && len(t) > 0 {
-				tags = t
-			}
-			if md, ok := opts.Context.Value(metadataKey{}).(metadata.Metadata); ok {
-				for k, v := range md {
-					hreq.Header.Set(k, v)
-				}
-			}
+	if opts.Context != nil {
+		if m, ok := opts.Context.Value(methodKey{}).(string); ok {
+			method = m
 		}
-		hreq.URL, err = u.Parse(ep)
-		if err != nil {
-			return nil, errors.BadRequest("go.micro.client", err.Error())
+		if p, ok := opts.Context.Value(pathKey{}).(string); ok {
+			path += p
+		}
+		if b, ok := opts.Context.Value(bodyKey{}).(string); ok {
+			body = b
+		}
+		if t, ok := opts.Context.Value(structTagsKey{}).([]string); ok && len(t) > 0 {
+			tags = t
 		}
 	}
-	if opts.AuthToken != "" {
-		hreq.Header.Set("Authorization", opts.AuthToken)
-	}
+
 	if len(tags) == 0 {
 		switch ct {
 		default:
@@ -95,29 +79,72 @@ func newRequest(addr string, req client.Request, ct string, cf codec.Codec, msg 
 		}
 	}
 
-	path, nmsg, err := newPathRequest(hreq.URL.Path, hreq.Method, body, msg, tags)
-	if err != nil {
-		return nil, errors.BadRequest("go.micro.client", err.Error())
+	if path == "" {
+		path = req.Endpoint()
 	}
 
-	if scheme != "" {
-		hreq.URL, err = url.Parse(scheme + "://" + addr + path)
-	} else {
-		hreq.URL, err = url.Parse(addr + path)
-	}
+	u, err = u.Parse(path)
 	if err != nil {
-		return nil, errors.BadRequest("go.micro.client", err.Error())
+		return nil, errors.BadRequest("go.micro.client_v", err.Error())
+	}
+
+	path, nmsg, err := newPathRequest(u.Path, method, body, msg, tags)
+	if err != nil {
+		return nil, errors.BadRequest("go.micro.client_a", err.Error())
+	}
+
+	u, err = url.Parse(fmt.Sprintf("%s://%s%s", scheme, host, path))
+	if err != nil {
+		return nil, errors.BadRequest("go.micro.client_t", err.Error())
 	}
 
 	b, err := cf.Marshal(nmsg)
 	if err != nil {
-		return nil, errors.BadRequest("go.micro.client", err.Error())
+		return nil, errors.BadRequest("go.micro.client_e", err.Error())
 	}
 
+	var hreq *http.Request
 	if len(b) > 0 {
-		hreq.Body = ioutil.NopCloser(bytes.NewBuffer(b))
+		hreq, err = http.NewRequestWithContext(ctx, method, u.String(), ioutil.NopCloser(bytes.NewBuffer(b)))
 		hreq.ContentLength = int64(len(b))
+	} else {
+		hreq, err = http.NewRequestWithContext(ctx, method, u.String(), nil)
 	}
+
+	if err != nil {
+		return nil, errors.BadRequest("go.micro.client_k", err.Error())
+	}
+
+	header := make(http.Header)
+
+	if opts.Context != nil {
+		if md, ok := opts.Context.Value(metadataKey{}).(metadata.Metadata); ok {
+			for k, v := range md {
+				header.Set(k, v)
+			}
+		}
+	}
+
+	if opts.AuthToken != "" {
+		hreq.Header.Set("Authorization", opts.AuthToken)
+	}
+
+	if md, ok := metadata.FromOutgoingContext(ctx); ok {
+		for k, v := range md {
+			hreq.Header.Set(k, v)
+		}
+	}
+
+	// set timeout in nanoseconds
+	if opts.StreamTimeout > time.Duration(0) {
+		hreq.Header.Set("Timeout", fmt.Sprintf("%d", opts.StreamTimeout))
+	}
+	if opts.RequestTimeout > time.Duration(0) {
+		hreq.Header.Set("Timeout", fmt.Sprintf("%d", opts.RequestTimeout))
+	}
+
+	// set the content type for the request
+	hreq.Header.Set("Content-Type", ct)
 
 	return hreq, nil
 }
@@ -132,24 +159,13 @@ func (h *httpClient) call(ctx context.Context, addr string, req client.Request, 
 	if err != nil {
 		return errors.InternalServerError("go.micro.client", err.Error())
 	}
-	hreq, err := newRequest(addr, req, ct, cf, req.Body(), opts)
+	hreq, err := newRequest(ctx, addr, req, ct, cf, req.Body(), opts)
 	if err != nil {
 		return err
 	}
 
-	if md, ok := metadata.FromOutgoingContext(ctx); ok {
-		for k, v := range md {
-			hreq.Header.Set(k, v)
-		}
-	}
-
-	// set timeout in nanoseconds
-	hreq.Header.Set("Timeout", fmt.Sprintf("%d", opts.RequestTimeout))
-	// set the content type for the request
-	hreq.Header.Set("Content-Type", ct)
-
 	// make the request
-	hrsp, err := h.httpcli.Do(hreq.WithContext(ctx))
+	hrsp, err := h.httpcli.Do(hreq)
 	if err != nil {
 		switch err := err.(type) {
 		case *url.Error:
@@ -170,27 +186,10 @@ func (h *httpClient) call(ctx context.Context, addr string, req client.Request, 
 }
 
 func (h *httpClient) stream(ctx context.Context, addr string, req client.Request, opts client.CallOptions) (client.Stream, error) {
-	var header http.Header
-
-	if md, ok := metadata.FromOutgoingContext(ctx); ok {
-		header = make(http.Header, len(md)+2)
-		for k, v := range md {
-			header.Set(k, v)
-		}
-	} else {
-		header = make(http.Header, 2)
-	}
-
 	ct := req.ContentType()
 	if len(opts.ContentType) > 0 {
 		ct = opts.ContentType
 	}
-	// set timeout in nanoseconds
-	if opts.StreamTimeout > time.Duration(0) {
-		header.Set("Timeout", fmt.Sprintf("%d", opts.StreamTimeout))
-	}
-	// set the content type for the request
-	header.Set("Content-Type", ct)
 
 	// get codec
 	cf, err := h.newCodec(ct)
@@ -211,7 +210,6 @@ func (h *httpClient) stream(ctx context.Context, addr string, req client.Request
 		conn:    cc,
 		ct:      ct,
 		cf:      cf,
-		header:  header,
 		reader:  bufio.NewReader(cc),
 		request: req,
 	}, nil
