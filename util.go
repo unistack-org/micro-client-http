@@ -12,6 +12,7 @@ import (
 
 	"github.com/unistack-org/micro/v3/client"
 	"github.com/unistack-org/micro/v3/errors"
+	"github.com/unistack-org/micro/v3/logger"
 	rutil "github.com/unistack-org/micro/v3/util/reflect"
 	util "github.com/unistack-org/micro/v3/util/router"
 )
@@ -211,7 +212,17 @@ func (h *httpClient) parseRsp(ctx context.Context, hrsp *http.Response, rsp inte
 		}
 
 		cf, cerr := h.newCodec(ct)
-		if cerr != nil {
+		if hrsp.StatusCode >= 400 && cerr != nil {
+			var buf []byte
+			if hrsp.Body != nil {
+				buf, err = io.ReadAll(hrsp.Body)
+				if err != nil && h.opts.Logger.V(logger.ErrorLevel) {
+					h.opts.Logger.Errorf(ctx, "failed to read body: %v", err)
+				}
+			}
+			// response like text/plain or something else, return original error
+			return errors.New("go.micro.client", string(buf), int32(hrsp.StatusCode))
+		} else if cerr != nil {
 			return errors.InternalServerError("go.micro.client", cerr.Error())
 		}
 
