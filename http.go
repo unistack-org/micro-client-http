@@ -85,22 +85,22 @@ func newRequest(ctx context.Context, addr string, req client.Request, ct string,
 
 	u, err = u.Parse(path)
 	if err != nil {
-		return nil, errors.BadRequest("go.micro.client_v", err.Error())
+		return nil, errors.BadRequest("go.micro.client", err.Error())
 	}
 
 	path, nmsg, err := newPathRequest(u.Path, method, body, msg, tags)
 	if err != nil {
-		return nil, errors.BadRequest("go.micro.client_a", err.Error())
+		return nil, errors.BadRequest("go.micro.client", err.Error())
 	}
 
 	u, err = url.Parse(fmt.Sprintf("%s://%s%s", scheme, host, path))
 	if err != nil {
-		return nil, errors.BadRequest("go.micro.client_t", err.Error())
+		return nil, errors.BadRequest("go.micro.client", err.Error())
 	}
 
 	b, err := cf.Marshal(nmsg)
 	if err != nil {
-		return nil, errors.BadRequest("go.micro.client_e", err.Error())
+		return nil, errors.BadRequest("go.micro.client", err.Error())
 	}
 
 	var hreq *http.Request
@@ -112,7 +112,7 @@ func newRequest(ctx context.Context, addr string, req client.Request, ct string,
 	}
 
 	if err != nil {
-		return nil, errors.BadRequest("go.micro.client_k", err.Error())
+		return nil, errors.BadRequest("go.micro.client", err.Error())
 	}
 
 	header := make(http.Header)
