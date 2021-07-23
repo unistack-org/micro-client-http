@@ -126,7 +126,7 @@ func newRequest(ctx context.Context, addr string, req client.Request, ct string,
 	}
 
 	if opts.AuthToken != "" {
-		hreq.Header.Set("Authorization", opts.AuthToken)
+		hreq.Header.Set(metadata.HeaderAuthorization, opts.AuthToken)
 	}
 
 	if md, ok := metadata.FromOutgoingContext(ctx); ok {
@@ -137,14 +137,14 @@ func newRequest(ctx context.Context, addr string, req client.Request, ct string,
 
 	// set timeout in nanoseconds
 	if opts.StreamTimeout > time.Duration(0) {
-		hreq.Header.Set("Timeout", fmt.Sprintf("%d", opts.StreamTimeout))
+		hreq.Header.Set(metadata.HeaderTimeout, fmt.Sprintf("%d", opts.StreamTimeout))
 	}
 	if opts.RequestTimeout > time.Duration(0) {
-		hreq.Header.Set("Timeout", fmt.Sprintf("%d", opts.RequestTimeout))
+		hreq.Header.Set(metadata.HeaderTimeout, fmt.Sprintf("%d", opts.RequestTimeout))
 	}
 
 	// set the content type for the request
-	hreq.Header.Set("Content-Type", ct)
+	hreq.Header.Set(metadata.HeaderContentType, ct)
 
 	return hreq, nil
 }
@@ -539,8 +539,8 @@ func (h *httpClient) Publish(ctx context.Context, p client.Message, opts ...clie
 	if !ok {
 		md = metadata.New(2)
 	}
-	md["Content-Type"] = p.ContentType()
-	md["Micro-Topic"] = p.Topic()
+	md[metadata.HeaderContentType] = p.ContentType()
+	md[metadata.HeaderTopic] = p.Topic()
 
 	cf, err := h.newCodec(p.ContentType())
 	if err != nil {
