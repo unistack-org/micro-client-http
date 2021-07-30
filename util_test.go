@@ -5,13 +5,31 @@ import (
 	"testing"
 )
 
-func TestTemplate(t *testing.T) {
-	tpl, err := newTemplate("/v1/{ClientID}/list")
-	if err != nil {
-		t.Fatal(err)
+func TestParsing(t *testing.T) {
+	type Message struct {
+		IIN string `protobuf:"bytes,1,opt,name=iin,proto3" json:"iin"`
 	}
-	_ = tpl
-	//	fmt.Printf("%#+v\n", tpl.Pool)
+
+	omsg := &Message{IIN: "5555"}
+
+	for _, m := range []string{"POST"} {
+		body := ""
+		path, nmsg, err := newPathRequest("/users/iin/{iin}/push-notifications", m, body, omsg, []string{"protobuf", "json"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		u, err := url.Parse(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = nmsg
+		if u.Path != "/users/iin/5555/push-notifications" {
+			t.Fatalf("newPathRequest invalid path %s", u.Path)
+		}
+		if nmsg != nil {
+			t.Fatalf("new message must be nil: %v\n", nmsg)
+		}
+	}
 }
 
 func TestNewPathRequest(t *testing.T) {

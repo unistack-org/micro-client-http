@@ -14,11 +14,10 @@ import (
 	"github.com/unistack-org/micro/v3/errors"
 	"github.com/unistack-org/micro/v3/logger"
 	rutil "github.com/unistack-org/micro/v3/util/reflect"
-	util "github.com/unistack-org/micro/v3/util/router"
 )
 
 var (
-	templateCache = make(map[string]util.Template)
+	templateCache = make(map[string][]string)
 	mu            sync.RWMutex
 )
 
@@ -46,14 +45,17 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 		return "", nil, err
 	}
 
-	if len(tpl.Fields) > 0 && msg == nil {
+	if len(tpl) > 0 && msg == nil {
 		return "", nil, fmt.Errorf("nil message but path params requested: %v", path)
 	}
 
 	fieldsmapskip := make(map[string]struct{})
-	fieldsmap := make(map[string]string, len(tpl.Fields))
-	for _, v := range tpl.Fields {
-		fieldsmap[v] = ""
+	fieldsmap := make(map[string]string, len(tpl))
+	for _, v := range tpl {
+		if v[0] != '{' || v[len(v)-1] != '}' {
+			continue
+		}
+		fieldsmap[v[1:len(v)-1]] = ""
 	}
 
 	nmsg, err := rutil.Zero(msg)
@@ -149,11 +151,15 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 	}
 
 	var b strings.Builder
-	for _, fld := range tpl.Pool {
+	for _, fld := range tpl {
 		_, _ = b.WriteRune('/')
-		if v, ok := fieldsmap[fld]; ok {
-			if v != "" {
-				_, _ = b.WriteString(v)
+		if fld[0] == '{' && fld[len(fld)-1] == '}' {
+			if v, ok := fieldsmap[fld[1:len(fld)-1]]; ok {
+				if v != "" {
+					_, _ = b.WriteString(v)
+				}
+			} else {
+				_, _ = b.WriteString(fld)
 			}
 		} else {
 			_, _ = b.WriteString(fld)
@@ -172,7 +178,10 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 	return b.String(), nmsg, nil
 }
 
-func newTemplate(path string) (util.Template, error) {
+func newTemplate(path string) ([]string, error) {
+	if len(path) == 0 || path[0] != '/' {
+		return nil, fmt.Errorf("path must starts with /")
+	}
 	mu.RLock()
 	tpl, ok := templateCache[path]
 	if ok {
@@ -181,12 +190,7 @@ func newTemplate(path string) (util.Template, error) {
 	}
 	mu.RUnlock()
 
-	rule, err := util.Parse(path)
-	if err != nil {
-		return tpl, err
-	}
-
-	tpl = rule.Compile()
+	tpl = strings.Split(path[1:], "/")
 	mu.Lock()
 	templateCache[path] = tpl
 	mu.Unlock()

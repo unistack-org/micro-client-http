@@ -532,50 +532,61 @@ func (h *httpClient) Stream(ctx context.Context, req client.Request, opts ...cli
 	return nil, grr
 }
 
+func (h *httpClient) BatchPublish(ctx context.Context, p []client.Message, opts ...client.PublishOption) error {
+	return h.publish(ctx, p, opts...)
+}
+
 func (h *httpClient) Publish(ctx context.Context, p client.Message, opts ...client.PublishOption) error {
+	return h.publish(ctx, []client.Message{p}, opts...)
+}
+
+func (h *httpClient) publish(ctx context.Context, ps []client.Message, opts ...client.PublishOption) error {
 	options := client.NewPublishOptions(opts...)
 
-	md, ok := metadata.FromOutgoingContext(ctx)
-	if !ok {
-		md = metadata.New(2)
-	}
-	md[metadata.HeaderContentType] = p.ContentType()
-	md[metadata.HeaderTopic] = p.Topic()
-
-	cf, err := h.newCodec(p.ContentType())
-	if err != nil {
-		return errors.InternalServerError("go.micro.client", err.Error())
+	// get proxy
+	exchange := ""
+	if v, ok := os.LookupEnv("MICRO_PROXY"); ok {
+		exchange = v
 	}
 
-	var body []byte
+	msgs := make([]*broker.Message, 0, len(ps))
 
-	// passed in raw data
-	if d, ok := p.Payload().(*codec.Frame); ok {
-		body = d.Data
-	} else {
-		b := bytes.NewBuffer(nil)
-		if err := cf.Write(b, &codec.Message{Type: codec.Event}, p.Payload()); err != nil {
+	for _, p := range ps {
+		md, ok := metadata.FromOutgoingContext(ctx)
+		if !ok {
+			md = metadata.New(2)
+		}
+		md[metadata.HeaderContentType] = p.ContentType()
+		md[metadata.HeaderTopic] = p.Topic()
+
+		cf, err := h.newCodec(p.ContentType())
+		if err != nil {
 			return errors.InternalServerError("go.micro.client", err.Error())
 		}
-		body = b.Bytes()
+
+		var body []byte
+
+		// passed in raw data
+		if d, ok := p.Payload().(*codec.Frame); ok {
+			body = d.Data
+		} else {
+			b := bytes.NewBuffer(nil)
+			if err := cf.Write(b, &codec.Message{Type: codec.Event}, p.Payload()); err != nil {
+				return errors.InternalServerError("go.micro.client", err.Error())
+			}
+			body = b.Bytes()
+		}
+
+		topic := p.Topic()
+		if len(exchange) > 0 {
+			topic = exchange
+		}
+
+		md.Set(metadata.HeaderTopic, topic)
+		msgs = append(msgs, &broker.Message{Header: md, Body: body})
 	}
 
-	topic := p.Topic()
-
-	// get proxy
-	if prx := os.Getenv("MICRO_PROXY"); len(prx) > 0 {
-		options.Exchange = prx
-	}
-
-	// get the exchange
-	if len(options.Exchange) > 0 {
-		topic = options.Exchange
-	}
-
-	return h.opts.Broker.Publish(ctx, topic, &broker.Message{
-		Header: md,
-		Body:   body,
-	},
+	return h.opts.Broker.BatchPublish(ctx, msgs,
 		broker.PublishContext(ctx),
 		broker.PublishBodyOnly(options.BodyOnly),
 	)
