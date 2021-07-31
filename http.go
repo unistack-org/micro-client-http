@@ -549,13 +549,15 @@ func (h *httpClient) publish(ctx context.Context, ps []client.Message, opts ...c
 		exchange = v
 	}
 
+	omd, ok := metadata.FromOutgoingContext(ctx)
+	if !ok {
+		omd = metadata.New(2)
+	}
+
 	msgs := make([]*broker.Message, 0, len(ps))
 
 	for _, p := range ps {
-		md, ok := metadata.FromOutgoingContext(ctx)
-		if !ok {
-			md = metadata.New(2)
-		}
+		md := metadata.Copy(omd)
 		md[metadata.HeaderContentType] = p.ContentType()
 		md[metadata.HeaderTopic] = p.Topic()
 
