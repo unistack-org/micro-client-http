@@ -153,6 +153,7 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 	var b strings.Builder
 	for _, fld := range tpl {
 		_, _ = b.WriteRune('/')
+		// nolint: nestif
 		if fld[0] == '{' && fld[len(fld)-1] == '}' {
 			if v, ok := fieldsmap[fld[1:len(fld)-1]]; ok {
 				if v != "" {
