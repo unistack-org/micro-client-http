@@ -88,7 +88,13 @@ func newRequest(ctx context.Context, addr string, req client.Request, ct string,
 		return nil, errors.BadRequest("go.micro.client", err.Error())
 	}
 
-	path, nmsg, err := newPathRequest(u.Path, method, body, msg, tags)
+	var nmsg interface{}
+	if len(u.Query()) > 0 {
+		path, nmsg, err = newPathRequest(u.Path+"?"+u.Query().Encode(), method, body, msg, tags)
+	} else {
+		path, nmsg, err = newPathRequest(u.Path, method, body, msg, tags)
+	}
+
 	if err != nil {
 		return nil, errors.BadRequest("go.micro.client", err.Error())
 	}
