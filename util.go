@@ -52,10 +52,20 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 	fieldsmapskip := make(map[string]struct{})
 	fieldsmap := make(map[string]string, len(tpl))
 	for _, v := range tpl {
-		if v[0] != '{' || v[len(v)-1] != '}' {
-			continue
+		var vs, ve int
+		for i := 0; i < len(v); i++ {
+			switch v[i] {
+			case '{':
+				vs = i + 1
+			case '}':
+				ve = i
+			}
+			if ve != 0 {
+				fieldsmap[v[vs:ve]] = ""
+				vs = 0
+				ve = 0
+			}
 		}
-		fieldsmap[v[1:len(v)-1]] = ""
 	}
 
 	nmsg, err := rutil.Zero(msg)
@@ -151,18 +161,36 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 	}
 
 	var b strings.Builder
+
 	for _, fld := range tpl {
 		_, _ = b.WriteRune('/')
 		// nolint: nestif
-		if fld[0] == '{' && fld[len(fld)-1] == '}' {
-			if v, ok := fieldsmap[fld[1:len(fld)-1]]; ok {
-				if v != "" {
-					_, _ = b.WriteString(v)
-				}
-			} else {
-				_, _ = b.WriteString(fld)
+		var vs, ve, vf int
+		var pholder bool
+		for i := 0; i < len(fld); i++ {
+			switch fld[i] {
+			case '{':
+				vs = i + 1
+			case '}':
+				ve = i
 			}
-		} else {
+			// nolint: nestif
+			if vs > 0 && ve != 0 {
+				if vm, ok := fieldsmap[fld[vs:ve]]; ok {
+					if vm != "" {
+						_, _ = b.WriteString(fld[vf : vs-1])
+						_, _ = b.WriteString(vm)
+						vf = ve + 1
+					}
+				} else {
+					_, _ = b.WriteString(fld)
+				}
+				vs = 0
+				ve = 0
+				pholder = true
+			}
+		}
+		if !pholder {
 			_, _ = b.WriteString(fld)
 		}
 	}
