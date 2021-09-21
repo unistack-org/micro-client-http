@@ -1,4 +1,4 @@
-name: "Pull Request Auto Merge"
+name: "prautomerge"
 
 on:
   workflow_run:
