@@ -90,7 +90,7 @@ func newRequest(ctx context.Context, addr string, req client.Request, ct string,
 
 	var nmsg interface{}
 	if len(u.Query()) > 0 {
-		path, nmsg, err = newPathRequest(u.Path+"?"+u.Query().Encode(), method, body, msg, tags)
+		path, nmsg, err = newPathRequest(u.Path+"?"+u.RawQuery, method, body, msg, tags)
 	} else {
 		path, nmsg, err = newPathRequest(u.Path, method, body, msg, tags)
 	}
