@@ -1,7 +1,7 @@
 package http
 
 import (
-	"github.com/unistack-org/micro/v3/client"
+	"go.unistack.org/micro/v3/client"
 )
 
 type httpMessage struct {

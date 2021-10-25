@@ -15,11 +15,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/unistack-org/micro/v3/broker"
-	"github.com/unistack-org/micro/v3/client"
-	"github.com/unistack-org/micro/v3/codec"
-	"github.com/unistack-org/micro/v3/errors"
-	"github.com/unistack-org/micro/v3/metadata"
+	"go.unistack.org/micro/v3/broker"
+	"go.unistack.org/micro/v3/client"
+	"go.unistack.org/micro/v3/codec"
+	"go.unistack.org/micro/v3/errors"
+	"go.unistack.org/micro/v3/metadata"
+	rutil "go.unistack.org/micro/v3/util/reflect"
 )
 
 var DefaultContentType = "application/json"
@@ -40,6 +41,7 @@ type httpClient struct {
 
 func newRequest(ctx context.Context, addr string, req client.Request, ct string, cf codec.Codec, msg interface{}, opts client.CallOptions) (*http.Request, error) {
 	var tags []string
+	var parameters map[string]map[string]string
 	scheme := "http"
 	method := http.MethodPost
 	body := "*" // as like google api http annotation
@@ -55,6 +57,7 @@ func newRequest(ctx context.Context, addr string, req client.Request, ct string,
 		u = &url.URL{Scheme: scheme, Path: path, Host: host}
 	}
 
+	// nolint: nestif
 	if opts.Context != nil {
 		if m, ok := opts.Context.Value(methodKey{}).(string); ok {
 			method = m
@@ -67,6 +70,32 @@ func newRequest(ctx context.Context, addr string, req client.Request, ct string,
 		}
 		if t, ok := opts.Context.Value(structTagsKey{}).([]string); ok && len(t) > 0 {
 			tags = t
+		}
+		if k, ok := opts.Context.Value(headerKey{}).([]string); ok && len(k) > 0 {
+			if parameters == nil {
+				parameters = make(map[string]map[string]string)
+			}
+			m, ok := parameters["header"]
+			if !ok {
+				m = make(map[string]string)
+				parameters["header"] = m
+			}
+			for idx := 0; idx < len(k)/2; idx += 2 {
+				m[k[idx]] = k[idx+1]
+			}
+		}
+		if k, ok := opts.Context.Value(cookieKey{}).([]string); ok && len(k) > 0 {
+			if parameters == nil {
+				parameters = make(map[string]map[string]string)
+			}
+			m, ok := parameters["cookie"]
+			if !ok {
+				m = make(map[string]string)
+				parameters["cookie"] = m
+			}
+			for idx := 0; idx < len(k)/2; idx += 2 {
+				m[k[idx]] = k[idx+1]
+			}
 		}
 	}
 
@@ -90,9 +119,9 @@ func newRequest(ctx context.Context, addr string, req client.Request, ct string,
 
 	var nmsg interface{}
 	if len(u.Query()) > 0 {
-		path, nmsg, err = newPathRequest(u.Path+"?"+u.RawQuery, method, body, msg, tags)
+		path, nmsg, err = newPathRequest(u.Path+"?"+u.RawQuery, method, body, msg, tags, parameters)
 	} else {
-		path, nmsg, err = newPathRequest(u.Path, method, body, msg, tags)
+		path, nmsg, err = newPathRequest(u.Path, method, body, msg, tags, parameters)
 	}
 
 	if err != nil {
@@ -104,6 +133,59 @@ func newRequest(ctx context.Context, addr string, req client.Request, ct string,
 		return nil, errors.BadRequest("go.micro.client", err.Error())
 	}
 
+	var cookies []*http.Cookie
+	header := make(http.Header)
+	if opts.Context != nil {
+		if md, ok := opts.Context.Value(metadataKey{}).(metadata.Metadata); ok {
+			for k, v := range md {
+				header.Set(k, v)
+			}
+		}
+	}
+	if opts.AuthToken != "" {
+		header.Set(metadata.HeaderAuthorization, opts.AuthToken)
+	}
+
+	if md, ok := metadata.FromOutgoingContext(ctx); ok {
+		for k, v := range md {
+			header.Set(k, v)
+		}
+	}
+
+	// set timeout in nanoseconds
+	if opts.StreamTimeout > time.Duration(0) {
+		header.Set(metadata.HeaderTimeout, fmt.Sprintf("%d", opts.StreamTimeout))
+	}
+	if opts.RequestTimeout > time.Duration(0) {
+		header.Set(metadata.HeaderTimeout, fmt.Sprintf("%d", opts.RequestTimeout))
+	}
+
+	// set the content type for the request
+	header.Set(metadata.HeaderContentType, ct)
+	var v interface{}
+
+	for km, vm := range parameters {
+		for k, required := range vm {
+			v, err = rutil.StructFieldByPath(nmsg, k)
+			if err != nil {
+				return nil, errors.BadRequest("go.micro.client", err.Error())
+			}
+			if rutil.IsZero(v) {
+				if required == "true" {
+					return nil, errors.BadRequest("go.micro.client", fmt.Sprintf("required field %s not set", k))
+				}
+				continue
+			}
+
+			switch km {
+			case "header":
+				header.Set(k, fmt.Sprintf("%v", v))
+			case "cookie":
+				cookies = append(cookies, &http.Cookie{Name: k, Value: fmt.Sprintf("%v", v)})
+			}
+		}
+	}
+
 	b, err := cf.Marshal(nmsg)
 	if err != nil {
 		return nil, errors.BadRequest("go.micro.client", err.Error())
@@ -113,6 +195,7 @@ func newRequest(ctx context.Context, addr string, req client.Request, ct string,
 	if len(b) > 0 {
 		hreq, err = http.NewRequestWithContext(ctx, method, u.String(), ioutil.NopCloser(bytes.NewBuffer(b)))
 		hreq.ContentLength = int64(len(b))
+		header.Set("Content-Length", fmt.Sprintf("%d", hreq.ContentLength))
 	} else {
 		hreq, err = http.NewRequestWithContext(ctx, method, u.String(), nil)
 	}
@@ -121,36 +204,10 @@ func newRequest(ctx context.Context, addr string, req client.Request, ct string,
 		return nil, errors.BadRequest("go.micro.client", err.Error())
 	}
 
-	header := make(http.Header)
-
-	if opts.Context != nil {
-		if md, ok := opts.Context.Value(metadataKey{}).(metadata.Metadata); ok {
-			for k, v := range md {
-				header.Set(k, v)
-			}
-		}
+	hreq.Header = header
+	for _, cookie := range cookies {
+		hreq.AddCookie(cookie)
 	}
-
-	if opts.AuthToken != "" {
-		hreq.Header.Set(metadata.HeaderAuthorization, opts.AuthToken)
-	}
-
-	if md, ok := metadata.FromOutgoingContext(ctx); ok {
-		for k, v := range md {
-			hreq.Header.Set(k, v)
-		}
-	}
-
-	// set timeout in nanoseconds
-	if opts.StreamTimeout > time.Duration(0) {
-		hreq.Header.Set(metadata.HeaderTimeout, fmt.Sprintf("%d", opts.StreamTimeout))
-	}
-	if opts.RequestTimeout > time.Duration(0) {
-		hreq.Header.Set(metadata.HeaderTimeout, fmt.Sprintf("%d", opts.RequestTimeout))
-	}
-
-	// set the content type for the request
-	hreq.Header.Set(metadata.HeaderContentType, ct)
 
 	return hreq, nil
 }

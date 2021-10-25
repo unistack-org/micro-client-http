@@ -4,8 +4,8 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/unistack-org/micro/v3/client"
-	"github.com/unistack-org/micro/v3/metadata"
+	"go.unistack.org/micro/v3/client"
+	"go.unistack.org/micro/v3/metadata"
 )
 
 var (
@@ -57,6 +57,7 @@ func MaxSendMsgSize(s int) client.Option {
 type httpClientKey struct{}
 
 // nolint: golint
+// HTTPClient pass http.Client option to client Call
 func HTTPClient(c *http.Client) client.Option {
 	return client.SetOption(httpClientKey{}, c)
 }
@@ -64,24 +65,28 @@ func HTTPClient(c *http.Client) client.Option {
 type httpDialerKey struct{}
 
 // nolint: golint
+// HTTPDialer pass net.Dialer option to client
 func HTTPDialer(d *net.Dialer) client.Option {
 	return client.SetOption(httpDialerKey{}, d)
 }
 
 type methodKey struct{}
 
+// Method pass method option to client Call
 func Method(m string) client.CallOption {
 	return client.SetCallOption(methodKey{}, m)
 }
 
 type pathKey struct{}
 
+// Path spcecifies path option to client Call
 func Path(p string) client.CallOption {
 	return client.SetCallOption(pathKey{}, p)
 }
 
 type bodyKey struct{}
 
+// Body specifies body option to client Call
 func Body(b string) client.CallOption {
 	return client.SetCallOption(bodyKey{}, b)
 }
@@ -94,12 +99,28 @@ func ErrorMap(m map[string]interface{}) client.CallOption {
 
 type structTagsKey struct{}
 
+// StructTags pass tags slice option to client Call
 func StructTags(tags []string) client.CallOption {
 	return client.SetCallOption(structTagsKey{}, tags)
 }
 
 type metadataKey struct{}
 
+// Metadata pass metadata to client Call
 func Metadata(md metadata.Metadata) client.CallOption {
 	return client.SetCallOption(metadataKey{}, md)
+}
+
+type cookieKey struct{}
+
+// Cookie pass cookie to client Call
+func Cookie(cookies ...string) client.CallOption {
+	return client.SetCallOption(cookieKey{}, cookies)
+}
+
+type headerKey struct{}
+
+// Header pass cookie to client Call
+func Header(headers ...string) client.CallOption {
+	return client.SetCallOption(headerKey{}, headers)
 }

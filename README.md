@@ -5,14 +5,14 @@ This plugin is a http client for micro.
 ## Overview
 
 The http client wraps `net/http` to provide a robust micro client with service discovery, load balancing and streaming. 
-It complies with the [micro.Client](https://godoc.org/github.com/unistack-org/micro-client-http#Client) interface.
+It complies with the [micro.Client](https://godoc.org/go.unistack.org/micro-client-http/v3#Client) interface.
 
 ## Usage
 
 ### Use directly
 
 ```go
-import "github.com/unistack-org/micro-client-http"
+import "go.unistack.org/micro-client-http/v3"
 
 service := micro.NewService(
 	micro.Name("my.service"),

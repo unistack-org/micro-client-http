@@ -14,7 +14,7 @@ func TestParsing(t *testing.T) {
 
 	for _, m := range []string{"POST"} {
 		body := ""
-		path, nmsg, err := newPathRequest("/users/iin/{iin}/push-notifications", m, body, omsg, []string{"protobuf", "json"})
+		path, nmsg, err := newPathRequest("/users/iin/{iin}/push-notifications", m, body, omsg, []string{"protobuf", "json"}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -44,7 +44,7 @@ func TestNewPathRequest(t *testing.T) {
 
 	for _, m := range []string{"POST", "PUT", "PATCH", "GET", "DELETE"} {
 		body := ""
-		path, nmsg, err := newPathRequest("/v1/test", m, body, omsg, []string{"protobuf", "json"})
+		path, nmsg, err := newPathRequest("/v1/test", m, body, omsg, []string{"protobuf", "json"}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -74,7 +74,7 @@ func TestNewPathVarRequest(t *testing.T) {
 		if m != "GET" {
 			body = "*"
 		}
-		path, nmsg, err := newPathRequest("/v1/test/{val1}", m, body, omsg, []string{"protobuf", "json"})
+		path, nmsg, err := newPathRequest("/v1/test/{val1}", m, body, omsg, []string{"protobuf", "json"}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

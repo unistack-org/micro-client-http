@@ -9,9 +9,9 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/unistack-org/micro/v3/client"
-	"github.com/unistack-org/micro/v3/codec"
-	"github.com/unistack-org/micro/v3/errors"
+	"go.unistack.org/micro/v3/client"
+	"go.unistack.org/micro/v3/codec"
+	"go.unistack.org/micro/v3/errors"
 )
 
 // Implements the streamer interface

@@ -10,10 +10,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/unistack-org/micro/v3/client"
-	"github.com/unistack-org/micro/v3/errors"
-	"github.com/unistack-org/micro/v3/logger"
-	rutil "github.com/unistack-org/micro/v3/util/reflect"
+	"go.unistack.org/micro/v3/client"
+	"go.unistack.org/micro/v3/errors"
+	"go.unistack.org/micro/v3/logger"
+	rutil "go.unistack.org/micro/v3/util/reflect"
 )
 
 var (
@@ -38,7 +38,7 @@ func GetError(err error) interface{} {
 	return err
 }
 
-func newPathRequest(path string, method string, body string, msg interface{}, tags []string) (string, interface{}, error) {
+func newPathRequest(path string, method string, body string, msg interface{}, tags []string, parameters map[string]map[string]string) (string, interface{}, error) {
 	// parse via https://github.com/googleapis/googleapis/blob/master/google/api/http.proto definition
 	tpl, err := newTemplate(path)
 	if err != nil {
@@ -117,9 +117,17 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 			}
 		}
 
-		if t.name == "" {
+		cname := t.name
+		if cname == "" {
+			cname = fld.Name
 			// fallback to lowercase
 			t.name = strings.ToLower(fld.Name)
+		}
+		if _, ok := parameters["header"][cname]; ok {
+			continue
+		}
+		if _, ok := parameters["cookie"][cname]; ok {
+			continue
 		}
 
 		if !val.IsValid() || val.IsZero() {
@@ -199,6 +207,12 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 		_, _ = b.WriteRune('?')
 		_, _ = b.WriteString(values.Encode())
 	}
+
+	/*
+		if err = rutil.ZeroFieldByPath(nmsg, k); err != nil {
+			return nil, errors.BadRequest("go.micro.client", err.Error())
+		}
+	*/
 
 	if rutil.IsZero(nmsg) {
 		return b.String(), nil, nil
