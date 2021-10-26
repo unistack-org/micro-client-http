@@ -1,5 +1,5 @@
 // Package http provides a http client
-package http
+package http // import "go.unistack.org/micro-client-http/v3"
 
 import (
 	"bufio"
