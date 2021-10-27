@@ -166,7 +166,7 @@ func newRequest(ctx context.Context, addr string, req client.Request, ct string,
 
 	for km, vm := range parameters {
 		for k, required := range vm {
-			v, err = rutil.StructFieldByPath(nmsg, k)
+			v, err = rutil.StructFieldByPath(msg, k)
 			if err != nil {
 				return nil, errors.BadRequest("go.micro.client", err.Error())
 			}
