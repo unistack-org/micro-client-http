@@ -49,7 +49,7 @@ jobs:
       with:
         go-version: 1.16
     # Initializes the CodeQL tools for scanning.
-    - name: Initialize CodeQL
+    - name: init
       uses: github/codeql-action/init@v1
       with:
         languages: ${{ matrix.language }}
