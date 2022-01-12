@@ -52,6 +52,10 @@ func (h *httpStream) Response() client.Response {
 	return nil
 }
 
+func (h *httpStream) SendMsg(msg interface{}) error {
+	return h.Send(msg)
+}
+
 func (h *httpStream) Send(msg interface{}) error {
 	h.Lock()
 	defer h.Unlock()
@@ -67,6 +71,10 @@ func (h *httpStream) Send(msg interface{}) error {
 	}
 
 	return hreq.Write(h.conn)
+}
+
+func (h *httpStream) RecvMsg(msg interface{}) error {
+	return h.Recv(msg)
 }
 
 func (h *httpStream) Recv(msg interface{}) error {
@@ -91,6 +99,10 @@ func (h *httpStream) Error() error {
 	h.RLock()
 	defer h.RUnlock()
 	return h.err
+}
+
+func (h *httpStream) CloseSend() error {
+	return h.Close()
 }
 
 func (h *httpStream) Close() error {
