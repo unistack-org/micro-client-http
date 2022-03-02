@@ -92,6 +92,9 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 			continue
 		}
 		fld := tmsg.Type().Field(i)
+		if !fld.IsExported() {
+			continue
+		}
 
 		t := &tag{}
 		for _, tn := range tags {
