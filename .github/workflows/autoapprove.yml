@@ -1,4 +1,4 @@
-name: "autoreview"
+name: "autoapprove"
 
 on:
   pull_request_target:
@@ -9,13 +9,13 @@ permissions:
   contents: write
 
 jobs:
-  dependabot:
+  autoapprove:
     runs-on: ubuntu-latest
-    if: |
-      github.actor == 'vtolstov' ||
-      github.actor == 'dependabot[bot]'
     steps:
       - name: approve
+        uses: hmarr/auto-approve-action@v2
+        if: github.actor == 'vtolstov' || github.actor == 'dependabot[bot]'
+        id: approve
         run: gh pr review --approve "$PR_URL"
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
