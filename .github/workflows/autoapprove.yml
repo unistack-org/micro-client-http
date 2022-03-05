@@ -16,6 +16,5 @@ jobs:
         uses: hmarr/auto-approve-action@v2
         if: github.actor == 'vtolstov' || github.actor == 'dependabot[bot]'
         id: approve
-        env:
-          PR_URL: ${{github.event.pull_request.html_url}}
-          GITHUB_TOKEN: ${{secrets.TOKEN}}
+        with:
+          github-token: ${{secrets.TOKEN}}
