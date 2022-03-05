@@ -11,7 +11,9 @@ permissions:
 jobs:
   dependabot:
     runs-on: ubuntu-latest
-    if: ${{ github.actor == 'vtolstov' }}
+    if: |
+      github.actor == 'vtolstov' ||
+      github.actor == 'dependabot[bot]'
     steps:
       - name: metadata
         id: metadata
