@@ -17,4 +17,4 @@ jobs:
         if: github.actor == 'vtolstov' || github.actor == 'dependabot[bot]'
         id: approve
         with:
-          github-token: ${{secrets.TOKEN}}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
