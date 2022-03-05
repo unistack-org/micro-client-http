@@ -15,11 +15,6 @@ jobs:
       github.actor == 'vtolstov' ||
       github.actor == 'dependabot[bot]'
     steps:
-      - name: metadata
-        id: metadata
-        uses: dependabot/fetch-metadata@v1.3.0
-        with:
-          github-token: "${{ secrets.TOKEN }}"
       - name: approve
         run: gh pr review --approve "$PR_URL"
         env:
