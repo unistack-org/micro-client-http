@@ -1,4 +1,4 @@
-name: "prautomerge"
+name: "autoreview"
 
 on:
   pull_request_target:
@@ -11,7 +11,9 @@ permissions:
 jobs:
   dependabot:
     runs-on: ubuntu-latest
-    if: ${{ github.actor == 'dependabot[bot]' }}
+    if: |
+      github.actor == 'vtolstov' ||
+      github.actor == 'dependabot[bot]'
     steps:
       - name: metadata
         id: metadata
@@ -20,12 +22,6 @@ jobs:
           github-token: "${{ secrets.TOKEN }}"
       - name: approve
         run: gh pr review --approve "$PR_URL"
-        env:
-          PR_URL: ${{github.event.pull_request.html_url}}
-          GITHUB_TOKEN: ${{secrets.TOKEN}}
-      - name: merge
-        if: ${{contains(steps.metadata.outputs.dependency-names, 'go.unistack.org')}}
-        run: gh pr merge --auto --merge "$PR_URL"
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
           GITHUB_TOKEN: ${{secrets.TOKEN}}
