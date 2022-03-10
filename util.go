@@ -147,11 +147,11 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 			switch val.Type().Kind() {
 			case reflect.Slice:
 				for idx := 0; idx < val.Len(); idx++ {
-					values.Add(t.name, fmt.Sprintf("%v", val.Index(idx).Interface()))
+					values.Add(t.name, getParam(val.Index(idx)))
 				}
 				fieldsmapskip[t.name] = struct{}{}
 			default:
-				fieldsmap[t.name] = fmt.Sprintf("%v", val.Interface())
+				fieldsmap[t.name] = getParam(val)
 			}
 		} else if (body == "*" || body == t.name) && method != http.MethodGet {
 			if tnmsg.Field(i).CanSet() {
@@ -160,10 +160,10 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 		} else {
 			if val.Type().Kind() == reflect.Slice {
 				for idx := 0; idx < val.Len(); idx++ {
-					values.Add(t.name, fmt.Sprintf("%v", val.Index(idx).Interface()))
+					values.Add(t.name, getParam(val.Index(idx)))
 				}
 			} else {
-				values.Add(t.name, fmt.Sprintf("%v", val.Interface()))
+				values.Add(t.name, getParam(val))
 			}
 		}
 	}
@@ -215,12 +215,6 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 		_, _ = b.WriteRune('?')
 		_, _ = b.WriteString(values.Encode())
 	}
-
-	/*
-		if err = rutil.ZeroFieldByPath(nmsg, k); err != nil {
-			return nil, errors.BadRequest("go.micro.client", err.Error())
-		}
-	*/
 
 	if rutil.IsZero(nmsg) {
 		return b.String(), nil, nil
@@ -323,4 +317,27 @@ func (h *httpClient) parseRsp(ctx context.Context, hrsp *http.Response, rsp inte
 type tag struct {
 	key  string
 	name string
+}
+
+func getParam(val reflect.Value) string {
+	var v string
+	switch val.Kind() {
+	case reflect.Ptr:
+		switch reflect.Indirect(val).Type().String() {
+		case
+			"wrapperspb.BoolValue",
+			"wrapperspb.BytesValue",
+			"wrapperspb.DoubleValue",
+			"wrapperspb.FloatValue",
+			"wrapperspb.Int32Value", "wrapperspb.Int64Value",
+			"wrapperspb.StringValue",
+			"wrapperspb.UInt32Value", "wrapperspb.UInt64Value":
+			if eva := reflect.Indirect(val).FieldByName("Value"); eva.IsValid() {
+				v = getParam(eva)
+			}
+		}
+	default:
+		v = fmt.Sprintf("%v", val.Interface())
+	}
+	return v
 }
