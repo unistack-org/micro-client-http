@@ -692,11 +692,21 @@ func NewClient(opts ...client.Option) client.Client {
 		opts: options,
 	}
 
-	dialer, ok := options.Context.Value(httpDialerKey{}).(*net.Dialer)
-	if !ok {
-		dialer = &net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
+	var dialer func(context.Context, string) (net.Conn, error)
+	if v, ok := options.Context.Value(httpDialerKey{}).(*net.Dialer); ok {
+		dialer = func(ctx context.Context, addr string) (net.Conn, error) {
+			return v.DialContext(ctx, "tcp", addr)
+		}
+	}
+	if options.ContextDialer != nil {
+		dialer = options.ContextDialer
+	}
+	if dialer == nil {
+		dialer = func(ctx context.Context, addr string) (net.Conn, error) {
+			return (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext(ctx, "tcp", addr)
 		}
 	}
 
@@ -705,8 +715,10 @@ func NewClient(opts ...client.Option) client.Client {
 	} else {
 		// TODO customTransport := http.DefaultTransport.(*http.Transport).Clone()
 		tr := &http.Transport{
-			Proxy:                 http.ProxyFromEnvironment,
-			DialContext:           dialer.DialContext,
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				return dialer(ctx, addr)
+			},
 			ForceAttemptHTTP2:     true,
 			MaxConnsPerHost:       100,
 			MaxIdleConns:          20,
