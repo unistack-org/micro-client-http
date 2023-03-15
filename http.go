@@ -19,6 +19,7 @@ import (
 	"go.unistack.org/micro/v3/client"
 	"go.unistack.org/micro/v3/codec"
 	"go.unistack.org/micro/v3/errors"
+	"go.unistack.org/micro/v3/logger"
 	"go.unistack.org/micro/v3/metadata"
 	"go.unistack.org/micro/v3/selector"
 	rutil "go.unistack.org/micro/v3/util/reflect"
@@ -40,7 +41,7 @@ type httpClient struct {
 	init bool
 }
 
-func newRequest(ctx context.Context, addr string, req client.Request, ct string, cf codec.Codec, msg interface{}, opts client.CallOptions) (*http.Request, error) {
+func newRequest(ctx context.Context, log logger.Logger, addr string, req client.Request, ct string, cf codec.Codec, msg interface{}, opts client.CallOptions) (*http.Request, error) {
 	var tags []string
 	var parameters map[string]map[string]string
 	scheme := "http"
@@ -210,6 +211,10 @@ func newRequest(ctx context.Context, addr string, req client.Request, ct string,
 		hreq.AddCookie(cookie)
 	}
 
+	if log.V(logger.DebugLevel) {
+		log.Debugf(ctx, "request %s to %s with headers %v body %s", method, u.String(), hreq.Header, b)
+	}
+
 	return hreq, nil
 }
 
@@ -221,9 +226,9 @@ func (h *httpClient) call(ctx context.Context, addr string, req client.Request, 
 
 	cf, err := h.newCodec(ct)
 	if err != nil {
-		return errors.InternalServerError("go.micro.client", err.Error())
+		return errors.BadRequest("go.micro.client", err.Error())
 	}
-	hreq, err := newRequest(ctx, addr, req, ct, cf, req.Body(), opts)
+	hreq, err := newRequest(ctx, h.opts.Logger, addr, req, ct, cf, req.Body(), opts)
 	if err != nil {
 		return err
 	}
@@ -258,7 +263,7 @@ func (h *httpClient) stream(ctx context.Context, addr string, req client.Request
 	// get codec
 	cf, err := h.newCodec(ct)
 	if err != nil {
-		return nil, errors.InternalServerError("go.micro.client", err.Error())
+		return nil, errors.BadRequest("go.micro.client", err.Error())
 	}
 
 	cc, err := (h.httpcli.Transport).(*http.Transport).DialContext(ctx, "tcp", addr)
@@ -268,6 +273,7 @@ func (h *httpClient) stream(ctx context.Context, addr string, req client.Request
 
 	return &httpStream{
 		address: addr,
+		logger:  h.opts.Logger,
 		context: ctx,
 		closed:  make(chan bool),
 		opts:    opts,
