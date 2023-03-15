@@ -2,9 +2,11 @@ package http
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"sync"
@@ -12,6 +14,7 @@ import (
 	"go.unistack.org/micro/v3/client"
 	"go.unistack.org/micro/v3/codec"
 	"go.unistack.org/micro/v3/errors"
+	"go.unistack.org/micro/v3/logger"
 )
 
 // Implements the streamer interface
@@ -20,6 +23,7 @@ type httpStream struct {
 	conn    net.Conn
 	cf      codec.Codec
 	context context.Context
+	logger  logger.Logger
 	request client.Request
 	closed  chan bool
 	reader  *bufio.Reader
@@ -65,7 +69,7 @@ func (h *httpStream) Send(msg interface{}) error {
 		return errShutdown
 	}
 
-	hreq, err := newRequest(h.context, h.address, h.request, h.ct, h.cf, msg, h.opts)
+	hreq, err := newRequest(h.context, h.logger, h.address, h.request, h.ct, h.cf, msg, h.opts)
 	if err != nil {
 		return err
 	}
@@ -92,7 +96,7 @@ func (h *httpStream) Recv(msg interface{}) error {
 	}
 	defer hrsp.Body.Close()
 
-	return h.parseRsp(h.context, hrsp, h.cf, msg, h.opts)
+	return h.parseRsp(h.context, h.logger, hrsp, h.cf, msg, h.opts)
 }
 
 func (h *httpStream) Error() error {
@@ -115,7 +119,7 @@ func (h *httpStream) Close() error {
 	}
 }
 
-func (h *httpStream) parseRsp(ctx context.Context, hrsp *http.Response, cf codec.Codec, rsp interface{}, opts client.CallOptions) error {
+func (h *httpStream) parseRsp(ctx context.Context, log logger.Logger, hrsp *http.Response, cf codec.Codec, rsp interface{}, opts client.CallOptions) error {
 	var err error
 
 	select {
@@ -128,6 +132,14 @@ func (h *httpStream) parseRsp(ctx context.Context, hrsp *http.Response, cf codec
 		}
 
 		if hrsp.StatusCode < 400 {
+			if log.V(logger.DebugLevel) {
+				buf, rerr := io.ReadAll(hrsp.Body)
+				log.Debugf(ctx, "response %s with %v", buf, hrsp.Header)
+				if err != nil {
+					return errors.InternalServerError("go.micro.client", rerr.Error())
+				}
+				hrsp.Body = ioutil.NopCloser(bytes.NewBuffer(buf))
+			}
 			if err = cf.ReadBody(hrsp.Body, rsp); err != nil {
 				return errors.InternalServerError("go.micro.client", err.Error())
 			}
@@ -142,10 +154,22 @@ func (h *httpStream) parseRsp(ctx context.Context, hrsp *http.Response, cf codec
 		}
 		if !ok || err == nil {
 			buf, cerr := io.ReadAll(hrsp.Body)
+			if log.V(logger.DebugLevel) {
+				log.Debugf(ctx, "response %s with %v", buf, hrsp.Header)
+			}
 			if cerr != nil {
 				return errors.InternalServerError("go.micro.client", cerr.Error())
 			}
 			return errors.New("go.micro.client", string(buf), int32(hrsp.StatusCode))
+		}
+
+		if log.V(logger.DebugLevel) {
+			buf, rerr := io.ReadAll(hrsp.Body)
+			log.Debugf(ctx, "response %s with %v", buf, hrsp.Header)
+			if err != nil {
+				return errors.InternalServerError("go.micro.client", rerr.Error())
+			}
+			hrsp.Body = ioutil.NopCloser(bytes.NewBuffer(buf))
 		}
 
 		if cerr := cf.ReadBody(hrsp.Body, err); cerr != nil {
