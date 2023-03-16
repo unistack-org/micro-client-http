@@ -1,11 +1,9 @@
 package http
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -247,45 +245,48 @@ func newTemplate(path string) ([]string, error) {
 
 func (h *httpClient) parseRsp(ctx context.Context, hrsp *http.Response, rsp interface{}, opts client.CallOptions) error {
 	var err error
+	var buf []byte
+
+	// fast path return
+	if hrsp.StatusCode == http.StatusNoContent {
+		return nil
+	}
 
 	select {
 	case <-ctx.Done():
 		err = ctx.Err()
 	default:
-		// fast path return
-		if hrsp.StatusCode == http.StatusNoContent {
-			return nil
-		}
 		ct := DefaultContentType
 
 		if htype := hrsp.Header.Get("Content-Type"); htype != "" {
 			ct = htype
 		}
 
-		cf, cerr := h.newCodec(ct)
-		if hrsp.StatusCode >= 400 && cerr != nil {
-			var buf []byte
-			if hrsp.Body != nil {
-				buf, err = io.ReadAll(hrsp.Body)
-				if err != nil && h.opts.Logger.V(logger.ErrorLevel) {
+		if hrsp.Body != nil {
+			buf, err = io.ReadAll(hrsp.Body)
+			if err != nil {
+				if h.opts.Logger.V(logger.ErrorLevel) {
 					h.opts.Logger.Errorf(ctx, "failed to read body: %v", err)
 				}
+				return errors.InternalServerError("go.micro.client", string(buf))
 			}
+		}
+
+		cf, cerr := h.newCodec(ct)
+		if cerr != nil {
 			if h.opts.Logger.V(logger.DebugLevel) {
-				h.opts.Logger.Debugf(ctx, "response %s with %v", buf, hrsp.Header)
-			}
-			// response like text/plain or something else, return original error
-			return errors.New("go.micro.client", string(buf), int32(hrsp.StatusCode))
-		} else if cerr != nil {
-			if h.opts.Logger.V(logger.DebugLevel) {
-				h.opts.Logger.Debugf(ctx, "response with %v unknown content-type", hrsp.Header, ct)
+				h.opts.Logger.Debugf(ctx, "response with %v unknown content-type %s", hrsp.Header, ct, buf)
 			}
 			return errors.InternalServerError("go.micro.client", cerr.Error())
 		}
 
+		if h.opts.Logger.V(logger.DebugLevel) {
+			h.opts.Logger.Debugf(ctx, "response %s with %v", buf, hrsp.Header)
+		}
+
 		// succeseful response
 		if hrsp.StatusCode < 400 {
-			if err = cf.ReadBody(hrsp.Body, rsp); err != nil {
+			if err = cf.Unmarshal(buf, rsp); err != nil {
 				return errors.InternalServerError("go.micro.client", err.Error())
 			}
 			return nil
@@ -302,26 +303,10 @@ func (h *httpClient) parseRsp(ctx context.Context, hrsp *http.Response, rsp inte
 		}
 
 		if !ok || rerr == nil {
-			buf, rerr := io.ReadAll(hrsp.Body)
-			if h.opts.Logger.V(logger.DebugLevel) {
-				h.opts.Logger.Debugf(ctx, "response %s with %v", buf, hrsp.Header)
-			}
-			if rerr != nil {
-				return errors.InternalServerError("go.micro.client", rerr.Error())
-			}
 			return errors.New("go.micro.client", string(buf), int32(hrsp.StatusCode))
 		}
 
-		if h.opts.Logger.V(logger.DebugLevel) {
-			buf, rerr := io.ReadAll(hrsp.Body)
-			h.opts.Logger.Debugf(ctx, "response %s with %v", buf, hrsp.Header)
-			if err != nil {
-				return errors.InternalServerError("go.micro.client", rerr.Error())
-			}
-			hrsp.Body = ioutil.NopCloser(bytes.NewBuffer(buf))
-		}
-
-		if cerr := cf.ReadBody(hrsp.Body, rerr); cerr != nil {
+		if cerr := cf.Unmarshal(buf, rerr); cerr != nil {
 			return errors.InternalServerError("go.micro.client", cerr.Error())
 		}
 
