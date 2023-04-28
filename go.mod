@@ -1,5 +1,5 @@
-module go.unistack.org/micro-client-http/v3
+module go.unistack.org/micro-client-http/v4
 
-go 1.18
+go 1.19
 
-require go.unistack.org/micro/v3 v3.10.16
+require go.unistack.org/micro/v4 v4.0.1
