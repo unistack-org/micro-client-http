@@ -13,6 +13,7 @@ import (
 	"go.unistack.org/micro/v3/client"
 	"go.unistack.org/micro/v3/errors"
 	"go.unistack.org/micro/v3/logger"
+	"go.unistack.org/micro/v3/metadata"
 	rutil "go.unistack.org/micro/v3/util/reflect"
 )
 
@@ -252,6 +253,13 @@ func (h *httpClient) parseRsp(ctx context.Context, hrsp *http.Response, rsp inte
 		return nil
 	}
 
+	if opts.ResponseMetadata != nil {
+		*opts.ResponseMetadata = metadata.New(len(hrsp.Header))
+		for k, v := range hrsp.Header {
+			opts.ResponseMetadata.Set(k, strings.Join(v, ","))
+		}
+	}
+
 	select {
 	case <-ctx.Done():
 		err = ctx.Err()
@@ -275,7 +283,7 @@ func (h *httpClient) parseRsp(ctx context.Context, hrsp *http.Response, rsp inte
 		cf, cerr := h.newCodec(ct)
 		if cerr != nil {
 			if h.opts.Logger.V(logger.DebugLevel) {
-				h.opts.Logger.Debugf(ctx, "response with %v unknown content-type %s", hrsp.Header, ct, buf)
+				h.opts.Logger.Debugf(ctx, "response with %v unknown content-type %s %s", hrsp.Header, ct, buf)
 			}
 			return errors.InternalServerError("go.micro.client", cerr.Error())
 		}
