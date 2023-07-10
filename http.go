@@ -147,6 +147,11 @@ func newRequest(ctx context.Context, log logger.Logger, addr string, req client.
 	if opts.AuthToken != "" {
 		header.Set(metadata.HeaderAuthorization, opts.AuthToken)
 	}
+	if opts.RequestMetadata != nil {
+		for k, v := range opts.RequestMetadata {
+			header.Set(k, v)
+		}
+	}
 
 	if md, ok := metadata.FromOutgoingContext(ctx); ok {
 		for k, v := range md {
