@@ -10,12 +10,10 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"sync"
 	"time"
 
-	"go.unistack.org/micro/v4/broker"
 	"go.unistack.org/micro/v4/client"
 	"go.unistack.org/micro/v4/codec"
 	"go.unistack.org/micro/v4/errors"
@@ -146,6 +144,11 @@ func newRequest(ctx context.Context, log logger.Logger, addr string, req client.
 	}
 	if opts.AuthToken != "" {
 		header.Set(metadata.HeaderAuthorization, opts.AuthToken)
+	}
+	if opts.RequestMetadata != nil {
+		for k, v := range opts.RequestMetadata {
+			header.Set(k, v)
+		}
 	}
 
 	if md, ok := metadata.FromOutgoingContext(ctx); ok {
@@ -308,9 +311,6 @@ func (h *httpClient) Init(opts ...client.Option) error {
 		o(&h.opts)
 	}
 
-	if err := h.opts.Broker.Init(); err != nil {
-		return err
-	}
 	if err := h.opts.Tracer.Init(); err != nil {
 		return err
 	}
@@ -332,10 +332,6 @@ func (h *httpClient) Init(opts ...client.Option) error {
 
 func (h *httpClient) Options() client.Options {
 	return h.opts
-}
-
-func (h *httpClient) NewMessage(topic string, msg interface{}, opts ...client.MessageOption) client.Message {
-	return newHTTPMessage(topic, msg, h.opts.ContentType, opts...)
 }
 
 func (h *httpClient) NewRequest(service, method string, req interface{}, opts ...client.RequestOption) client.Request {
@@ -612,71 +608,6 @@ func (h *httpClient) Stream(ctx context.Context, req client.Request, opts ...cli
 	}
 
 	return nil, grr
-}
-
-func (h *httpClient) BatchPublish(ctx context.Context, p []client.Message, opts ...client.PublishOption) error {
-	return h.publish(ctx, p, opts...)
-}
-
-func (h *httpClient) Publish(ctx context.Context, p client.Message, opts ...client.PublishOption) error {
-	return h.publish(ctx, []client.Message{p}, opts...)
-}
-
-func (h *httpClient) publish(ctx context.Context, ps []client.Message, opts ...client.PublishOption) error {
-	var body []byte
-
-	options := client.NewPublishOptions(opts...)
-
-	// get proxy
-	exchange := ""
-	if v, ok := os.LookupEnv("MICRO_PROXY"); ok {
-		exchange = v
-	}
-
-	omd, ok := metadata.FromOutgoingContext(ctx)
-	if !ok {
-		omd = metadata.New(2)
-	}
-
-	msgs := make([]*broker.Message, 0, len(ps))
-
-	for _, p := range ps {
-		md := metadata.Copy(omd)
-		md[metadata.HeaderContentType] = p.ContentType()
-
-		// passed in raw data
-		if d, ok := p.Payload().(*codec.Frame); ok {
-			body = d.Data
-		} else {
-			// use codec for payload
-			cf, err := h.newCodec(p.ContentType())
-			if err != nil {
-				return errors.InternalServerError("go.micro.client", err.Error())
-			}
-			// set the body
-			b, err := cf.Marshal(p.Payload())
-			if err != nil {
-				return errors.InternalServerError("go.micro.client", err.Error())
-			}
-			body = b
-		}
-
-		topic := p.Topic()
-		if len(exchange) > 0 {
-			topic = exchange
-		}
-
-		for k, v := range p.Metadata() {
-			md.Set(k, v)
-		}
-		md.Set(metadata.HeaderTopic, topic)
-		msgs = append(msgs, &broker.Message{Header: md, Body: body})
-	}
-
-	return h.opts.Broker.BatchPublish(ctx, msgs,
-		broker.PublishContext(ctx),
-		broker.PublishBodyOnly(options.BodyOnly),
-	)
 }
 
 func (h *httpClient) String() string {
