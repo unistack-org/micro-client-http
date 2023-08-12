@@ -19,6 +19,7 @@ import (
 	"go.unistack.org/micro/v4/errors"
 	"go.unistack.org/micro/v4/logger"
 	"go.unistack.org/micro/v4/metadata"
+	"go.unistack.org/micro/v4/options"
 	"go.unistack.org/micro/v4/selector"
 	rutil "go.unistack.org/micro/v4/util/reflect"
 )
@@ -303,7 +304,7 @@ func (h *httpClient) newCodec(ct string) (codec.Codec, error) {
 	return nil, codec.ErrUnknownContentType
 }
 
-func (h *httpClient) Init(opts ...client.Option) error {
+func (h *httpClient) Init(opts ...options.Option) error {
 	if len(opts) == 0 && h.init {
 		return nil
 	}
@@ -323,9 +324,6 @@ func (h *httpClient) Init(opts ...client.Option) error {
 	if err := h.opts.Meter.Init(); err != nil {
 		return err
 	}
-	if err := h.opts.Transport.Init(); err != nil {
-		return err
-	}
 
 	return nil
 }
@@ -334,11 +332,11 @@ func (h *httpClient) Options() client.Options {
 	return h.opts
 }
 
-func (h *httpClient) NewRequest(service, method string, req interface{}, opts ...client.RequestOption) client.Request {
+func (h *httpClient) NewRequest(service, method string, req interface{}, opts ...options.Option) client.Request {
 	return newHTTPRequest(service, method, req, h.opts.ContentType, opts...)
 }
 
-func (h *httpClient) Call(ctx context.Context, req client.Request, rsp interface{}, opts ...client.CallOption) error {
+func (h *httpClient) Call(ctx context.Context, req client.Request, rsp interface{}, opts ...options.Option) error {
 	// make a copy of call opts
 	callOpts := h.opts.CallOptions
 	for _, opt := range opts {
@@ -355,8 +353,9 @@ func (h *httpClient) Call(ctx context.Context, req client.Request, rsp interface
 	} else {
 		// got a deadline so no need to setup context
 		// but we need to set the timeout we pass along
-		opt := client.WithRequestTimeout(time.Until(d))
-		opt(&callOpts)
+		if err := options.Set(&callOpts, time.Until(d), ".RequestTimeout"); err != nil {
+			return errors.New("go.micro.client", fmt.Sprintf("%v", err.Error()), 400)
+		}
 	}
 
 	// should we noop right here?
@@ -370,9 +369,9 @@ func (h *httpClient) Call(ctx context.Context, req client.Request, rsp interface
 	hcall := h.call
 
 	// wrap the call in reverse
-	for i := len(callOpts.CallWrappers); i > 0; i-- {
-		hcall = callOpts.CallWrappers[i-1](hcall)
-	}
+	//for i := len(callOpts.CallWrappers); i > 0; i-- {
+	//	hcall = callOpts.CallWrappers[i-1](hcall)
+	//}
 
 	// use the router passed as a call option, or fallback to the rpc clients router
 	if callOpts.Router == nil {
@@ -470,7 +469,7 @@ func (h *httpClient) Call(ctx context.Context, req client.Request, rsp interface
 	return gerr
 }
 
-func (h *httpClient) Stream(ctx context.Context, req client.Request, opts ...client.CallOption) (client.Stream, error) {
+func (h *httpClient) Stream(ctx context.Context, req client.Request, opts ...options.Option) (client.Stream, error) {
 	var err error
 
 	// make a copy of call opts
@@ -489,8 +488,9 @@ func (h *httpClient) Stream(ctx context.Context, req client.Request, opts ...cli
 	} else {
 		// got a deadline so no need to setup context
 		// but we need to set the timeout we pass along
-		o := client.WithStreamTimeout(time.Until(d))
-		o(&callOpts)
+		if err = options.Set(&callOpts, time.Until(d), ".StreamTimeout"); err != nil {
+			return nil, errors.New("go.micro.client", fmt.Sprintf("%v", err.Error()), 400)
+		}
 	}
 
 	// should we noop right here?
@@ -618,7 +618,7 @@ func (h *httpClient) Name() string {
 	return h.opts.Name
 }
 
-func NewClient(opts ...client.Option) client.Client {
+func NewClient(opts ...options.Option) client.Client {
 	options := client.NewOptions(opts...)
 
 	if len(options.ContentType) == 0 {
@@ -667,11 +667,6 @@ func NewClient(opts ...client.Option) client.Client {
 		rc.httpcli = &http.Client{Transport: tr}
 	}
 	c := client.Client(rc)
-
-	// wrap in reverse
-	for i := len(options.Wrappers); i > 0; i-- {
-		c = options.Wrappers[i-1](c)
-	}
 
 	return c
 }

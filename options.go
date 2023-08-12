@@ -4,8 +4,8 @@ import (
 	"net"
 	"net/http"
 
-	"go.unistack.org/micro/v4/client"
 	"go.unistack.org/micro/v4/metadata"
+	"go.unistack.org/micro/v4/options"
 )
 
 var (
@@ -29,98 +29,98 @@ var (
 type poolMaxStreams struct{}
 
 // PoolMaxStreams maximum streams on a connectioin
-func PoolMaxStreams(n int) client.Option {
-	return client.SetOption(poolMaxStreams{}, n)
+func PoolMaxStreams(n int) options.Option {
+	return options.ContextOption(poolMaxStreams{}, n)
 }
 
 type poolMaxIdle struct{}
 
 // PoolMaxIdle maximum idle conns of a pool
-func PoolMaxIdle(d int) client.Option {
-	return client.SetOption(poolMaxIdle{}, d)
+func PoolMaxIdle(d int) options.Option {
+	return options.ContextOption(poolMaxIdle{}, d)
 }
 
 type maxRecvMsgSizeKey struct{}
 
 // MaxRecvMsgSize set the maximum size of message that client can receive.
-func MaxRecvMsgSize(s int) client.Option {
-	return client.SetOption(maxRecvMsgSizeKey{}, s)
+func MaxRecvMsgSize(s int) options.Option {
+	return options.ContextOption(maxRecvMsgSizeKey{}, s)
 }
 
 type maxSendMsgSizeKey struct{}
 
 // MaxSendMsgSize set the maximum size of message that client can send.
-func MaxSendMsgSize(s int) client.Option {
-	return client.SetOption(maxSendMsgSizeKey{}, s)
+func MaxSendMsgSize(s int) options.Option {
+	return options.ContextOption(maxSendMsgSizeKey{}, s)
 }
 
 type httpClientKey struct{}
 
 // nolint: golint
 // HTTPClient pass http.Client option to client Call
-func HTTPClient(c *http.Client) client.Option {
-	return client.SetOption(httpClientKey{}, c)
+func HTTPClient(c *http.Client) options.Option {
+	return options.ContextOption(httpClientKey{}, c)
 }
 
 type httpDialerKey struct{}
 
 // nolint: golint
 // HTTPDialer pass net.Dialer option to client
-func HTTPDialer(d *net.Dialer) client.Option {
-	return client.SetOption(httpDialerKey{}, d)
+func HTTPDialer(d *net.Dialer) options.Option {
+	return options.ContextOption(httpDialerKey{}, d)
 }
 
 type methodKey struct{}
 
 // Method pass method option to client Call
-func Method(m string) client.CallOption {
-	return client.SetCallOption(methodKey{}, m)
+func Method(m string) options.Option {
+	return options.ContextOption(methodKey{}, m)
 }
 
 type pathKey struct{}
 
 // Path spcecifies path option to client Call
-func Path(p string) client.CallOption {
-	return client.SetCallOption(pathKey{}, p)
+func Path(p string) options.Option {
+	return options.ContextOption(pathKey{}, p)
 }
 
 type bodyKey struct{}
 
 // Body specifies body option to client Call
-func Body(b string) client.CallOption {
-	return client.SetCallOption(bodyKey{}, b)
+func Body(b string) options.Option {
+	return options.ContextOption(bodyKey{}, b)
 }
 
 type errorMapKey struct{}
 
-func ErrorMap(m map[string]interface{}) client.CallOption {
-	return client.SetCallOption(errorMapKey{}, m)
+func ErrorMap(m map[string]interface{}) options.Option {
+	return options.ContextOption(errorMapKey{}, m)
 }
 
 type structTagsKey struct{}
 
 // StructTags pass tags slice option to client Call
-func StructTags(tags []string) client.CallOption {
-	return client.SetCallOption(structTagsKey{}, tags)
+func StructTags(tags []string) options.Option {
+	return options.ContextOption(structTagsKey{}, tags)
 }
 
 type metadataKey struct{}
 
 // Metadata pass metadata to client Call
-func Metadata(md metadata.Metadata) client.CallOption {
-	return client.SetCallOption(metadataKey{}, md)
+func Metadata(md metadata.Metadata) options.Option {
+	return options.ContextOption(metadataKey{}, md)
 }
 
 type cookieKey struct{}
 
 // Cookie pass cookie to client Call
-func Cookie(cookies ...string) client.CallOption {
-	return client.SetCallOption(cookieKey{}, cookies)
+func Cookie(cookies ...string) options.Option {
+	return options.ContextOption(cookieKey{}, cookies)
 }
 
 type headerKey struct{}
 
 // Header pass cookie to client Call
-func Header(headers ...string) client.CallOption {
-	return client.SetCallOption(headerKey{}, headers)
+func Header(headers ...string) options.Option {
+	return options.ContextOption(headerKey{}, headers)
 }
