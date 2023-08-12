@@ -3,6 +3,7 @@ package http
 import (
 	"go.unistack.org/micro/v4/client"
 	"go.unistack.org/micro/v4/codec"
+	"go.unistack.org/micro/v4/options"
 )
 
 type httpRequest struct {
@@ -13,7 +14,7 @@ type httpRequest struct {
 	opts        client.RequestOptions
 }
 
-func newHTTPRequest(service, method string, request interface{}, contentType string, opts ...client.RequestOption) client.Request {
+func newHTTPRequest(service, method string, request interface{}, contentType string, opts ...options.Option) client.Request {
 	options := client.NewRequestOptions(opts...)
 	if len(options.ContentType) == 0 {
 		options.ContentType = contentType

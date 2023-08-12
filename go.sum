@@ -1,2 +1,4 @@
 go.unistack.org/micro/v4 v4.0.1 h1:xo1IxbVfgh8i0eY0VeYa3cbb13u5n/Mxnp3FOgWD4Jo=
 go.unistack.org/micro/v4 v4.0.1/go.mod h1:p/J5UcSJjfHsWGT31uKoghQ5rUQZzQJBAFy+Z4+ZVMs=
+go.unistack.org/micro/v4 v4.0.6 h1:YFWvTh3VwyOd6NHYTQcf47n2TF5+p/EhpnbuBQX3qhk=
+go.unistack.org/micro/v4 v4.0.6/go.mod h1:bVEYTlPi0EsdgZZt311bIroDg9ict7ky3C87dSCCAGk=
