@@ -274,7 +274,7 @@ func (h *httpClient) parseRsp(ctx context.Context, hrsp *http.Response, rsp inte
 			buf, err = io.ReadAll(hrsp.Body)
 			if err != nil {
 				if h.opts.Logger.V(logger.ErrorLevel) {
-					h.opts.Logger.Errorf(ctx, "failed to read body: %v", err)
+					h.opts.Logger.Error(ctx, "failed to read body", err)
 				}
 				return errors.InternalServerError("go.micro.client", string(buf))
 			}
@@ -283,13 +283,13 @@ func (h *httpClient) parseRsp(ctx context.Context, hrsp *http.Response, rsp inte
 		cf, cerr := h.newCodec(ct)
 		if cerr != nil {
 			if h.opts.Logger.V(logger.DebugLevel) {
-				h.opts.Logger.Debugf(ctx, "response with %v unknown content-type %s %s", hrsp.Header, ct, buf)
+				h.opts.Logger.Debug(ctx, fmt.Sprintf("response with %v unknown content-type %s %s", hrsp.Header, ct, buf))
 			}
 			return errors.InternalServerError("go.micro.client", cerr.Error())
 		}
 
 		if h.opts.Logger.V(logger.DebugLevel) {
-			h.opts.Logger.Debugf(ctx, "response %s with %v", buf, hrsp.Header)
+			h.opts.Logger.Debug(ctx, fmt.Sprintf("response %s with %v", buf, hrsp.Header))
 		}
 
 		// succeseful response

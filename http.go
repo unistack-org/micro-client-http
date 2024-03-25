@@ -139,7 +139,7 @@ func newRequest(ctx context.Context, log logger.Logger, addr string, req client.
 	if opts.Context != nil {
 		if md, ok := opts.Context.Value(metadataKey{}).(metadata.Metadata); ok {
 			for k, v := range md {
-				header.Set(k, v)
+				header[k] = v
 			}
 		}
 	}
@@ -148,13 +148,13 @@ func newRequest(ctx context.Context, log logger.Logger, addr string, req client.
 	}
 	if opts.RequestMetadata != nil {
 		for k, v := range opts.RequestMetadata {
-			header.Set(k, v)
+			header[k] = v
 		}
 	}
 
 	if md, ok := metadata.FromOutgoingContext(ctx); ok {
 		for k, v := range md {
-			header.Set(k, v)
+			header[k] = v
 		}
 	}
 
@@ -216,7 +216,7 @@ func newRequest(ctx context.Context, log logger.Logger, addr string, req client.
 	}
 
 	if log.V(logger.DebugLevel) {
-		log.Debugf(ctx, "request %s to %s with headers %v body %s", method, u.String(), hreq.Header, b)
+		log.Debug(ctx, fmt.Sprintf("request %s to %s with headers %v body %s", method, u.String(), hreq.Header, b))
 	}
 
 	return hreq, nil
