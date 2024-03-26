@@ -59,6 +59,30 @@ func TestNewPathRequest(t *testing.T) {
 	}
 }
 
+func TestNewPathRequestWithEmptyBody(t *testing.T) {
+	val := struct{}{}
+
+	for _, m := range []string{"POST", "PUT", "PATCH", "GET", "DELETE"} {
+		body := `{"type": "invalid"}`
+		path, nmsg, err := newPathRequest("/v1/test", m, body, val, []string{"protobuf", "json"}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if nmsg == nil {
+			t.Fatalf("invalid path: nil nmsg")
+		}
+
+		u, err := url.Parse(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		vals := u.Query()
+		if len(vals) != 0 {
+			t.Fatalf("invalid path: %v nmsg: %v", path, nmsg)
+		}
+	}
+}
+
 func TestNewPathVarRequest(t *testing.T) {
 	type Message struct {
 		Name string `json:"name"`
