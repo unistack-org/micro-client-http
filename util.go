@@ -216,11 +216,19 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 		_, _ = b.WriteString(values.Encode())
 	}
 
-	if rutil.IsZero(nmsg) {
+	if rutil.IsZero(nmsg) && !isEmptyStruct(nmsg) {
 		return b.String(), nil, nil
 	}
 
 	return b.String(), nmsg, nil
+}
+
+func isEmptyStruct(v interface{}) bool {
+	val := reflect.ValueOf(v)
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+	}
+	return val.Kind() == reflect.Struct && val.NumField() == 0
 }
 
 func newTemplate(path string) ([]string, error) {
