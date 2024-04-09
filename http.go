@@ -217,7 +217,7 @@ func newRequest(ctx context.Context, log logger.Logger, addr string, req client.
 	}
 
 	if log.V(logger.DebugLevel) {
-		log.Debugf(ctx, "request %s to %s with headers %v body %s", method, u.String(), hreq.Header, b)
+		log.Debug(ctx, fmt.Sprintf("request %s to %s with headers %v body %s", method, u.String(), hreq.Header, b))
 	}
 
 	return hreq, nil
