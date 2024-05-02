@@ -87,6 +87,7 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 
 	values := url.Values{}
 	// copy cycle
+
 	for i := 0; i < tmsg.NumField(); i++ {
 		val := tmsg.Field(i)
 		if val.IsZero() {
@@ -121,6 +122,7 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 			default:
 				t = &tag{key: tn, name: tp[0]}
 			}
+
 			if t.name != "" {
 				break
 			}
@@ -159,12 +161,35 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 				tnmsg.Field(i).Set(val)
 			}
 		} else {
-			if val.Type().Kind() == reflect.Slice {
-				for idx := 0; idx < val.Len(); idx++ {
-					values.Add(t.name, getParam(val.Index(idx)))
+			isSet := false
+			for k, v := range fieldsmap {
+				if v != "" {
+					continue
 				}
-			} else {
-				values.Add(t.name, getParam(val))
+				fld := msg
+
+				parts := strings.Split(k, ".")
+				for idx := 0; idx < len(parts); idx++ {
+					name := strings.Title(parts[idx])
+					fld, err = rutil.StructFieldByName(fld, name)
+					if err != nil {
+						break
+					}
+					if len(parts)-1 == idx {
+						isSet = true
+						fieldsmap[k] = fmt.Sprintf("%v", fld)
+					}
+				}
+			}
+
+			if !isSet {
+				if val.Type().Kind() == reflect.Slice {
+					for idx := 0; idx < val.Len(); idx++ {
+						values.Add(t.name, getParam(val.Index(idx)))
+					}
+				} else {
+					values.Add(t.name, getParam(val))
+				}
 			}
 		}
 	}

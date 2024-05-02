@@ -6,16 +6,32 @@ import (
 	"testing"
 )
 
-type Request struct {
-	Name     string `json:"name"`
-	Field1   string `json:"field1"`
+type request struct {
+	Nested   *request `json:"nested"`
+	Name     string   `json:"name"`
+	Field1   string   `json:"field1"`
 	ClientID string
 	Field2   string
 	Field3   int64
 }
 
+func TestNestedPath(t *testing.T) {
+	req := &request{Name: "first", Nested: &request{Name: "second"}, Field1: "fieldval"}
+	p, _, err := newPathRequest("/api/v1/{name}/{nested.name}", "GET", "", req, []string{"json", "protobuf"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	u, err := url.Parse(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u.String() != "/api/v1/first/second?field1=fieldval" {
+		t.Fatal("nested path error")
+	}
+}
+
 func TestPathWithHeader(t *testing.T) {
-	req := &Request{Name: "vtolstov", Field1: "field1", ClientID: "1234567890"}
+	req := &request{Name: "vtolstov", Field1: "field1", ClientID: "1234567890"}
 	p, m, err := newPathRequest(
 		"/api/v1/test?Name={name}&Field1={field1}",
 		"POST",
@@ -40,7 +56,7 @@ func TestPathWithHeader(t *testing.T) {
 }
 
 func TestPathValues(t *testing.T) {
-	req := &Request{Name: "vtolstov", Field1: "field1"}
+	req := &request{Name: "vtolstov", Field1: "field1"}
 	p, m, err := newPathRequest("/api/v1/test?Name={name}&Field1={field1}", "POST", "*", req, nil, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -56,7 +72,7 @@ func TestPathValues(t *testing.T) {
 }
 
 func TestValidPath(t *testing.T) {
-	req := &Request{Name: "vtolstov", Field1: "field1", Field2: "field2", Field3: 10}
+	req := &request{Name: "vtolstov", Field1: "field1", Field2: "field2", Field3: 10}
 	p, m, err := newPathRequest("/api/v1/{name}/list", "GET", "", req, nil, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -73,7 +89,7 @@ func TestValidPath(t *testing.T) {
 }
 
 func TestInvalidPath(t *testing.T) {
-	req := &Request{Name: "vtolstov", Field1: "field1", Field2: "field2", Field3: 10}
+	req := &request{Name: "vtolstov", Field1: "field1", Field2: "field2", Field3: 10}
 	_, _, err := newPathRequest("/api/v1/{xname}/list", "GET", "", req, nil, nil)
 	if err == nil {
 		t.Fatal("path param must not be filled")
