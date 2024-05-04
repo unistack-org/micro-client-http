@@ -25,8 +25,8 @@ func TestNestedPath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if u.String() != "/api/v1/first/second?field1=fieldval" {
-		t.Fatal("nested path error")
+	if s := u.String(); s != "/api/v1/first/second?field1=fieldval" {
+		t.Fatalf("nested path error %s", s)
 	}
 }
 
@@ -90,8 +90,8 @@ func TestValidPath(t *testing.T) {
 
 func TestInvalidPath(t *testing.T) {
 	req := &request{Name: "vtolstov", Field1: "field1", Field2: "field2", Field3: 10}
-	_, _, err := newPathRequest("/api/v1/{xname}/list", "GET", "", req, nil, nil)
+	s, _, err := newPathRequest("/api/v1/{xname}/list", "GET", "", req, nil, nil)
 	if err == nil {
-		t.Fatal("path param must not be filled")
+		t.Fatalf("path param must not be filled: %s", s)
 	}
 }

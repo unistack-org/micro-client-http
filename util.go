@@ -169,15 +169,25 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 				fld := msg
 
 				parts := strings.Split(k, ".")
+
 				for idx := 0; idx < len(parts); idx++ {
-					name := strings.Title(parts[idx])
-					fld, err = rutil.StructFieldByName(fld, name)
-					if err != nil {
-						break
+					var nfld interface{}
+					if tags == nil {
+						tags = []string{"json"}
 					}
-					if len(parts)-1 == idx {
-						isSet = true
-						fieldsmap[k] = fmt.Sprintf("%v", fld)
+				tagsloop:
+					for i := 0; i < len(tags); i++ {
+						nfld, err = rutil.StructFieldByTag(fld, tags[i], parts[idx])
+						if err == nil {
+							break tagsloop
+						}
+					}
+					if err == nil {
+						fld = nfld
+						if len(parts)-1 == idx {
+							isSet = true
+							fieldsmap[k] = fmt.Sprintf("%v", fld)
+						}
 					}
 				}
 			}
