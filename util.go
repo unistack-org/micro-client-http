@@ -88,6 +88,7 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 	values := url.Values{}
 	// copy cycle
 
+	cleanPath := make(map[string]bool)
 	for i := 0; i < tmsg.NumField(); i++ {
 		val := tmsg.Field(i)
 		if val.IsZero() {
@@ -156,29 +157,28 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 			default:
 				fieldsmap[t.name] = getParam(val)
 			}
-		} else if (body == "*" || body == t.name) && method != http.MethodGet {
-			if tnmsg.Field(i).CanSet() {
-				tnmsg.Field(i).Set(val)
-			}
 		} else {
-			isSet := false
 			for k, v := range fieldsmap {
+				isSet := false
 				if v != "" {
 					continue
 				}
+				var clean []string
 				fld := msg
 
 				parts := strings.Split(k, ".")
 
 				for idx := 0; idx < len(parts); idx++ {
 					var nfld interface{}
+					var name string
 					if tags == nil {
 						tags = []string{"json"}
 					}
 				tagsloop:
-					for i := 0; i < len(tags); i++ {
-						nfld, err = rutil.StructFieldByTag(fld, tags[i], parts[idx])
+					for ti := 0; ti < len(tags); ti++ {
+						name, nfld, err = rutil.StructFieldNameByTag(fld, tags[ti], parts[idx])
 						if err == nil {
+							clean = append(clean, name)
 							break tagsloop
 						}
 					}
@@ -187,20 +187,34 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 						if len(parts)-1 == idx {
 							isSet = true
 							fieldsmap[k] = fmt.Sprintf("%v", fld)
+
 						}
 					}
 				}
-			}
-
-			if !isSet {
-				if val.Type().Kind() == reflect.Slice {
-					for idx := 0; idx < val.Len(); idx++ {
-						values.Add(t.name, getParam(val.Index(idx)))
-					}
-				} else {
-					values.Add(t.name, getParam(val))
+				if isSet {
+					cleanPath[strings.Join(clean, ".")] = true
 				}
 			}
+
+			if (body == "*" || body == t.name) && method != http.MethodGet {
+				if tnmsg.Field(i).CanSet() {
+					tnmsg.Field(i).Set(val)
+				}
+			}
+			for k := range cleanPath {
+				if err = rutil.ZeroFieldByPath(nmsg, k); err != nil {
+					return "", nil, err
+				}
+			}
+
+			if val.Type().Kind() == reflect.Slice {
+				for idx := 0; idx < val.Len(); idx++ {
+					values.Add(t.name, getParam(val.Index(idx)))
+				}
+			} else if !rutil.IsEmpty(val) {
+				values.Add(t.name, getParam(val))
+			}
+
 		}
 	}
 

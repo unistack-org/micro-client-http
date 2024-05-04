@@ -119,7 +119,7 @@ func TestNewPathVarRequest(t *testing.T) {
 				t.Fatalf("invalid nmsg: %#+v\n", nmsg)
 			}
 			if nmsg.(*Message).Name != "test_name" {
-				t.Fatalf("invalid nmsg: %v nmsg: %v", path, nmsg)
+				t.Fatalf("invalid path: %v nmsg: %#+v", path, nmsg)
 			}
 		} else {
 			vals := u.Query()

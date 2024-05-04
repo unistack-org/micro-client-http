@@ -7,17 +7,17 @@ import (
 )
 
 type request struct {
-	Nested   *request `json:"nested"`
-	Name     string   `json:"name"`
-	Field1   string   `json:"field1"`
-	ClientID string
-	Field2   string
-	Field3   int64
+	NestedTest *request `json:"nested_test"`
+	Name       string   `json:"name"`
+	Field1     string   `json:"field1"`
+	ClientID   string
+	Field2     string
+	Field3     int64
 }
 
 func TestNestedPath(t *testing.T) {
-	req := &request{Name: "first", Nested: &request{Name: "second"}, Field1: "fieldval"}
-	p, _, err := newPathRequest("/api/v1/{name}/{nested.name}", "GET", "", req, []string{"json", "protobuf"}, nil)
+	req := &request{Name: "first", NestedTest: &request{Name: "second"}, Field1: "fieldval"}
+	p, m, err := newPathRequest("/api/v1/{name}/{nested_test.name}", "PUT", "*", req, []string{"json", "protobuf"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,6 +28,7 @@ func TestNestedPath(t *testing.T) {
 	if s := u.String(); s != "/api/v1/first/second?field1=fieldval" {
 		t.Fatalf("nested path error %s", s)
 	}
+	_ = m
 }
 
 func TestPathWithHeader(t *testing.T) {
