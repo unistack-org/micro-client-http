@@ -195,24 +195,23 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 					cleanPath[strings.Join(clean, ".")] = true
 				}
 			}
-
-			if (body == "*" || body == t.name) && method != http.MethodGet {
-				if tnmsg.Field(i).CanSet() {
-					tnmsg.Field(i).Set(val)
-				}
-			}
 			for k := range cleanPath {
 				if err = rutil.ZeroFieldByPath(nmsg, k); err != nil {
 					return "", nil, err
 				}
 			}
-
-			if val.Type().Kind() == reflect.Slice {
-				for idx := 0; idx < val.Len(); idx++ {
-					values.Add(t.name, getParam(val.Index(idx)))
+			if (body == "*" || body == t.name) && method != http.MethodGet {
+				if tnmsg.Field(i).CanSet() {
+					tnmsg.Field(i).Set(val)
 				}
-			} else if !rutil.IsEmpty(val) {
-				values.Add(t.name, getParam(val))
+			} else if method == http.MethodGet {
+				if val.Type().Kind() == reflect.Slice {
+					for idx := 0; idx < val.Len(); idx++ {
+						values.Add(t.name, getParam(val.Index(idx)))
+					}
+				} else if !rutil.IsEmpty(val) {
+					values.Add(t.name, getParam(val))
+				}
 			}
 
 		}
@@ -265,6 +264,8 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 		_, _ = b.WriteRune('?')
 		_, _ = b.WriteString(values.Encode())
 	}
+
+	// rutil.ZeroEmpty(tnmsg.Interface())
 
 	if rutil.IsZero(nmsg) && !isEmptyStruct(nmsg) {
 		return b.String(), nil, nil

@@ -1,6 +1,7 @@
 package http
 
 import (
+	"net/http"
 	"net/url"
 	"testing"
 )
@@ -52,10 +53,16 @@ func TestNewPathRequest(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		vals := u.Query()
-		if v, ok := vals["name"]; !ok || v[0] != "test_name" {
-			t.Fatalf("invalid path: %v nmsg: %v", path, nmsg)
+		switch m {
+		case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
+			break
+		case http.MethodGet:
+			vals := u.Query()
+			if v, ok := vals["name"]; !ok || v[0] != "test_name" {
+				t.Fatalf("%s invalid path: %v nmsg: %v", m, path, nmsg)
+			}
 		}
+
 	}
 }
 

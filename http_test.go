@@ -1,18 +1,36 @@
 package http
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/url"
 	"strings"
 	"testing"
 )
 
+func TestNestedPathPost(t *testing.T) {
+	req := &request{Name: "first", Field1: "fieldval"}
+	p, m, err := newPathRequest("/api/v1/xxxx", "POST", "*", req, []string{"json", "protobuf"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	u, err := url.Parse(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := u.String(); s != "/api/v1/xxxx" {
+		t.Fatalf("nested path error %s", s)
+	}
+	_ = m
+}
+
 type request struct {
-	NestedTest *request `json:"nested_test"`
-	Name       string   `json:"name"`
-	Field1     string   `json:"field1"`
-	ClientID   string
-	Field2     string
-	Field3     int64
+	NestedTest *request `json:"nested_test,omitempty"`
+	Name       string   `json:"name,omitempty"`
+	Field1     string   `json:"field1,omitempty"`
+	ClientID   string   `json:",omitempty"`
+	Field2     string   `json:",omitempty"`
+	Field3     int64    `json:",omitempty"`
 }
 
 func TestNestedPath(t *testing.T) {
@@ -25,10 +43,14 @@ func TestNestedPath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s := u.String(); s != "/api/v1/first/second?field1=fieldval" {
+	if s := u.String(); s != "/api/v1/first/second" {
 		t.Fatalf("nested path error %s", s)
 	}
-	_ = m
+	b, err := json.Marshal(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Printf("m %#+v %s\n", m, b)
 }
 
 func TestPathWithHeader(t *testing.T) {
