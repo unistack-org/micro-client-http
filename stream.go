@@ -134,14 +134,14 @@ func (h *httpStream) parseRsp(ctx context.Context, log logger.Logger, hrsp *http
 			buf, err = io.ReadAll(hrsp.Body)
 			if err != nil {
 				if log.V(logger.ErrorLevel) {
-					log.Errorf(ctx, "failed to read body: %v", err)
+					log.Error(ctx, "failed to read body", err)
 				}
 				return errors.InternalServerError("go.micro.client", string(buf))
 			}
 		}
 
 		if log.V(logger.DebugLevel) {
-			log.Debugf(ctx, "response %s with %v", buf, hrsp.Header)
+			log.Debug(ctx, fmt.Sprintf("response %s with %v", buf, hrsp.Header))
 		}
 
 		if hrsp.StatusCode < 400 {
