@@ -334,7 +334,7 @@ func (h *httpClient) parseRsp(ctx context.Context, hrsp *http.Response, rsp inte
 				if h.opts.Logger.V(logger.ErrorLevel) {
 					h.opts.Logger.Error(ctx, "failed to read body", err)
 				}
-				return errors.InternalServerError("go.micro.client", string(buf))
+				return errors.InternalServerError("go.micro.client", "%s", buf)
 			}
 		}
 
@@ -343,7 +343,7 @@ func (h *httpClient) parseRsp(ctx context.Context, hrsp *http.Response, rsp inte
 			if h.opts.Logger.V(logger.DebugLevel) {
 				h.opts.Logger.Debug(ctx, fmt.Sprintf("response with %v unknown content-type %s %s", hrsp.Header, ct, buf))
 			}
-			return errors.InternalServerError("go.micro.client", cerr.Error())
+			return errors.InternalServerError("go.micro.client", "%+v", cerr)
 		}
 
 		if h.opts.Logger.V(logger.DebugLevel) {
@@ -353,7 +353,7 @@ func (h *httpClient) parseRsp(ctx context.Context, hrsp *http.Response, rsp inte
 		// succeseful response
 		if hrsp.StatusCode < 400 {
 			if err = cf.Unmarshal(buf, rsp); err != nil {
-				return errors.InternalServerError("go.micro.client", err.Error())
+				return errors.InternalServerError("go.micro.client", "%+v", err)
 			}
 			return nil
 		}
@@ -373,7 +373,7 @@ func (h *httpClient) parseRsp(ctx context.Context, hrsp *http.Response, rsp inte
 		}
 
 		if cerr := cf.Unmarshal(buf, rerr); cerr != nil {
-			return errors.InternalServerError("go.micro.client", cerr.Error())
+			return errors.InternalServerError("go.micro.client", "%+v", cerr)
 		}
 
 		if err, ok = rerr.(error); !ok {

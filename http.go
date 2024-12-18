@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -46,7 +46,6 @@ type httpClient struct {
 	httpcli          *http.Client
 	opts             client.Options
 	sync.RWMutex
-	init bool
 }
 
 func newRequest(ctx context.Context, log logger.Logger, addr string, req client.Request, ct string, cf codec.Codec, msg interface{}, opts client.CallOptions) (*http.Request, error) {
@@ -124,7 +123,7 @@ func newRequest(ctx context.Context, log logger.Logger, addr string, req client.
 
 	u, err = u.Parse(path)
 	if err != nil {
-		return nil, errors.BadRequest("go.micro.client", err.Error())
+		return nil, errors.BadRequest("go.micro.client", "%+v", err)
 	}
 
 	var nmsg interface{}
@@ -135,12 +134,12 @@ func newRequest(ctx context.Context, log logger.Logger, addr string, req client.
 	}
 
 	if err != nil {
-		return nil, errors.BadRequest("go.micro.client", err.Error())
+		return nil, errors.BadRequest("go.micro.client", "%+v", err)
 	}
 
 	u, err = url.Parse(fmt.Sprintf("%s://%s%s", scheme, host, path))
 	if err != nil {
-		return nil, errors.BadRequest("go.micro.client", err.Error())
+		return nil, errors.BadRequest("go.micro.client", "%+v", err)
 	}
 
 	var cookies []*http.Cookie
@@ -183,11 +182,11 @@ func newRequest(ctx context.Context, log logger.Logger, addr string, req client.
 		for k, required := range vm {
 			v, err = rutil.StructFieldByPath(msg, k)
 			if err != nil {
-				return nil, errors.BadRequest("go.micro.client", err.Error())
+				return nil, errors.BadRequest("go.micro.client", "%+v", err)
 			}
 			if rutil.IsZero(v) {
 				if required == "true" {
-					return nil, errors.BadRequest("go.micro.client", fmt.Sprintf("required field %s not set", k))
+					return nil, errors.BadRequest("go.micro.client", "required field %s not set", k)
 				}
 				continue
 			}
@@ -203,12 +202,12 @@ func newRequest(ctx context.Context, log logger.Logger, addr string, req client.
 
 	b, err := cf.Marshal(nmsg)
 	if err != nil {
-		return nil, errors.BadRequest("go.micro.client", err.Error())
+		return nil, errors.BadRequest("go.micro.client", "%+v", err)
 	}
 
 	var hreq *http.Request
 	if len(b) > 0 {
-		hreq, err = http.NewRequestWithContext(ctx, method, u.String(), ioutil.NopCloser(bytes.NewBuffer(b)))
+		hreq, err = http.NewRequestWithContext(ctx, method, u.String(), io.NopCloser(bytes.NewBuffer(b)))
 		hreq.ContentLength = int64(len(b))
 		header.Set("Content-Length", fmt.Sprintf("%d", hreq.ContentLength))
 	} else {
@@ -216,7 +215,7 @@ func newRequest(ctx context.Context, log logger.Logger, addr string, req client.
 	}
 
 	if err != nil {
-		return nil, errors.BadRequest("go.micro.client", err.Error())
+		return nil, errors.BadRequest("go.micro.client", "%+v", err)
 	}
 
 	hreq.Header = header
@@ -239,7 +238,7 @@ func (c *httpClient) call(ctx context.Context, addr string, req client.Request, 
 
 	cf, err := c.newCodec(ct)
 	if err != nil {
-		return errors.BadRequest("go.micro.client", err.Error())
+		return errors.BadRequest("go.micro.client", "%+v", err)
 	}
 	hreq, err := newRequest(ctx, c.opts.Logger, addr, req, ct, cf, req.Body(), opts)
 	if err != nil {
@@ -252,14 +251,14 @@ func (c *httpClient) call(ctx context.Context, addr string, req client.Request, 
 		switch err := err.(type) {
 		case *url.Error:
 			if err, ok := err.Err.(net.Error); ok && err.Timeout() {
-				return errors.Timeout("go.micro.client", err.Error())
+				return errors.Timeout("go.micro.client", "%+v", err)
 			}
 		case net.Error:
 			if err.Timeout() {
-				return errors.Timeout("go.micro.client", err.Error())
+				return errors.Timeout("go.micro.client", "%+v", err)
 			}
 		}
-		return errors.InternalServerError("go.micro.client", err.Error())
+		return errors.InternalServerError("go.micro.client", "%+v", err)
 	}
 
 	defer hrsp.Body.Close()
@@ -276,12 +275,12 @@ func (c *httpClient) stream(ctx context.Context, addr string, req client.Request
 	// get codec
 	cf, err := c.newCodec(ct)
 	if err != nil {
-		return nil, errors.BadRequest("go.micro.client", err.Error())
+		return nil, errors.BadRequest("go.micro.client", "%+v", err)
 	}
 
 	cc, err := (c.httpcli.Transport).(*http.Transport).DialContext(ctx, "tcp", addr)
 	if err != nil {
-		return nil, errors.InternalServerError("go.micro.client", fmt.Sprintf("Error dialing: %v", err))
+		return nil, errors.InternalServerError("go.micro.client", "Error dialing: %v", err)
 	}
 
 	return &httpStream{
@@ -324,7 +323,7 @@ func (c *httpClient) Init(opts ...client.Option) error {
 	c.funcPublish = c.fnPublish
 	c.funcBatchPublish = c.fnBatchPublish
 
-	c.opts.Hooks.EachNext(func(hook options.Hook) {
+	c.opts.Hooks.EachPrev(func(hook options.Hook) {
 		switch h := hook.(type) {
 		case client.HookCall:
 			c.funcCall = h(c.funcCall)
@@ -430,7 +429,7 @@ func (c *httpClient) fnCall(ctx context.Context, req client.Request, rsp interfa
 		// call backoff first. Someone may want an initial start delay
 		t, err := callOpts.Backoff(ctx, req, i)
 		if err != nil {
-			return errors.InternalServerError("go.micro.client", err.Error())
+			return errors.InternalServerError("go.micro.client", "%+v", err)
 		}
 
 		// only sleep if greater than 0
@@ -444,7 +443,7 @@ func (c *httpClient) fnCall(ctx context.Context, req client.Request, rsp interfa
 			// TODO apply any filtering here
 			routes, err = c.opts.Lookup(ctx, req, callOpts)
 			if err != nil {
-				return errors.InternalServerError("go.micro.client", err.Error())
+				return errors.InternalServerError("go.micro.client", "%+v", err)
 			}
 
 			// balance the list of nodes
@@ -589,7 +588,7 @@ func (c *httpClient) fnStream(ctx context.Context, req client.Request, opts ...c
 		// call backoff first. Someone may want an initial start delay
 		t, cerr := callOpts.Backoff(ctx, req, i)
 		if cerr != nil {
-			return nil, errors.InternalServerError("go.micro.client", cerr.Error())
+			return nil, errors.InternalServerError("go.micro.client", "%+v", cerr)
 		}
 
 		// only sleep if greater than 0
@@ -603,7 +602,7 @@ func (c *httpClient) fnStream(ctx context.Context, req client.Request, opts ...c
 			// TODO apply any filtering here
 			routes, err = c.opts.Lookup(ctx, req, callOpts)
 			if err != nil {
-				return nil, errors.InternalServerError("go.micro.client", err.Error())
+				return nil, errors.InternalServerError("go.micro.client", "%+v", err)
 			}
 
 			// balance the list of nodes
@@ -728,12 +727,12 @@ func (c *httpClient) publish(ctx context.Context, ps []client.Message, opts ...c
 			// use codec for payload
 			cf, err := c.newCodec(p.ContentType())
 			if err != nil {
-				return errors.InternalServerError("go.micro.client", err.Error())
+				return errors.InternalServerError("go.micro.client", "%+v", err)
 			}
 			// set the body
 			b, err := cf.Marshal(p.Payload())
 			if err != nil {
-				return errors.InternalServerError("go.micro.client", err.Error())
+				return errors.InternalServerError("go.micro.client", "%+v", err)
 			}
 			body = b
 		}

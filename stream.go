@@ -90,7 +90,7 @@ func (h *httpStream) Recv(msg interface{}) error {
 
 	hrsp, err := http.ReadResponse(h.reader, new(http.Request))
 	if err != nil {
-		return errors.InternalServerError("go.micro.client", err.Error())
+		return errors.InternalServerError("go.micro.client", "%+v", err)
 	}
 	defer hrsp.Body.Close()
 
@@ -136,7 +136,7 @@ func (h *httpStream) parseRsp(ctx context.Context, log logger.Logger, hrsp *http
 				if log.V(logger.ErrorLevel) {
 					log.Error(ctx, "failed to read body", err)
 				}
-				return errors.InternalServerError("go.micro.client", string(buf))
+				return errors.InternalServerError("go.micro.client", "%s", buf)
 			}
 		}
 
@@ -146,7 +146,7 @@ func (h *httpStream) parseRsp(ctx context.Context, log logger.Logger, hrsp *http
 
 		if hrsp.StatusCode < 400 {
 			if err = cf.Unmarshal(buf, rsp); err != nil {
-				return errors.InternalServerError("go.micro.client", err.Error())
+				return errors.InternalServerError("go.micro.client", "%+v", err)
 			}
 			return nil
 		}
@@ -163,7 +163,7 @@ func (h *httpStream) parseRsp(ctx context.Context, log logger.Logger, hrsp *http
 		}
 
 		if cerr := cf.Unmarshal(buf, rerr); cerr != nil {
-			return errors.InternalServerError("go.micro.client", cerr.Error())
+			return errors.InternalServerError("go.micro.client", "%+v", cerr)
 		}
 
 		if err, ok = rerr.(error); !ok {
