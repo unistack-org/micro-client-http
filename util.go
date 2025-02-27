@@ -10,11 +10,11 @@ import (
 	"strings"
 	"sync"
 
-	"go.unistack.org/micro/v3/client"
-	"go.unistack.org/micro/v3/errors"
-	"go.unistack.org/micro/v3/logger"
-	"go.unistack.org/micro/v3/metadata"
-	rutil "go.unistack.org/micro/v3/util/reflect"
+	"go.unistack.org/micro/v4/client"
+	"go.unistack.org/micro/v4/errors"
+	"go.unistack.org/micro/v4/logger"
+	"go.unistack.org/micro/v4/metadata"
+	rutil "go.unistack.org/micro/v4/util/reflect"
 )
 
 var (
