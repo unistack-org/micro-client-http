@@ -1,8 +1,8 @@
 package http
 
 import (
-	"go.unistack.org/micro/v3/client"
-	"go.unistack.org/micro/v3/codec"
+	"go.unistack.org/micro/v4/client"
+	"go.unistack.org/micro/v4/codec"
 )
 
 type httpRequest struct {
