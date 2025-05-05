@@ -1,5 +1,5 @@
 # HTTP Client
-![Coverage](https://img.shields.io/badge/Coverage-22.6%25-red)
+![Coverage](https://img.shields.io/badge/Coverage-20.8%25-red)
 
 This plugin is a http client for micro.
 
