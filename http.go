@@ -41,7 +41,7 @@ type httpClient struct {
 	funcStream client.FuncStream
 	httpcli    *http.Client
 	opts       client.Options
-	sync.RWMutex
+	mu         sync.RWMutex
 }
 
 func newRequest(ctx context.Context, log logger.Logger, addr string, req client.Request, ct string, cf codec.Codec, msg interface{}, opts client.CallOptions) (*http.Request, error) {
@@ -294,18 +294,18 @@ func (c *httpClient) stream(ctx context.Context, addr string, req client.Request
 }
 
 func (c *httpClient) newCodec(ct string) (codec.Codec, error) {
-	c.RLock()
+	c.mu.RLock()
 
 	if idx := strings.IndexRune(ct, ';'); idx >= 0 {
 		ct = ct[:idx]
 	}
 
 	if cf, ok := c.opts.Codecs[ct]; ok {
-		c.RUnlock()
+		c.mu.RUnlock()
 		return cf, nil
 	}
 
-	c.RUnlock()
+	c.mu.RUnlock()
 	return nil, codec.ErrUnknownContentType
 }
 

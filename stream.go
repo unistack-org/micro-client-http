@@ -28,7 +28,7 @@ type httpStream struct {
 	address string
 	ct      string
 	opts    client.CallOptions
-	sync.RWMutex
+	mu      sync.RWMutex
 }
 
 var errShutdown = fmt.Errorf("connection is shut down")
@@ -59,8 +59,8 @@ func (h *httpStream) SendMsg(msg interface{}) error {
 }
 
 func (h *httpStream) Send(msg interface{}) error {
-	h.Lock()
-	defer h.Unlock()
+	h.mu.Lock()
+	defer h.mu.Unlock()
 
 	if h.isClosed() {
 		h.err = errShutdown
@@ -80,8 +80,8 @@ func (h *httpStream) RecvMsg(msg interface{}) error {
 }
 
 func (h *httpStream) Recv(msg interface{}) error {
-	h.Lock()
-	defer h.Unlock()
+	h.mu.Lock()
+	defer h.mu.Unlock()
 
 	if h.isClosed() {
 		h.err = errShutdown
@@ -98,8 +98,8 @@ func (h *httpStream) Recv(msg interface{}) error {
 }
 
 func (h *httpStream) Error() error {
-	h.RLock()
-	defer h.RUnlock()
+	h.mu.RLock()
+	defer h.mu.RUnlock()
 	return h.err
 }
 
