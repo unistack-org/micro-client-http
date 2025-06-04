@@ -85,7 +85,7 @@ func newRequest(ctx context.Context, log logger.Logger, addr string, req client.
 				m = make(map[string]string)
 				parameters["header"] = m
 			}
-			for idx := 0; idx < len(k)/2; idx += 2 {
+			for idx := 0; idx+1 < len(k); idx += 2 {
 				m[k[idx]] = k[idx+1]
 			}
 		}
@@ -98,7 +98,7 @@ func newRequest(ctx context.Context, log logger.Logger, addr string, req client.
 				m = make(map[string]string)
 				parameters["cookie"] = m
 			}
-			for idx := 0; idx < len(k)/2; idx += 2 {
+			for idx := 0; idx+1 < len(k); idx += 2 {
 				m[k[idx]] = k[idx+1]
 			}
 		}
