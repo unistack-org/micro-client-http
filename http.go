@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	stderr "errors"
 	"fmt"
 	"io"
 	"net"
@@ -177,6 +178,11 @@ func newRequest(ctx context.Context, log logger.Logger, addr string, req client.
 	for km, vm := range parameters {
 		for k, required := range vm {
 			v, err = rutil.StructFieldByPath(msg, k)
+			if stderr.Is(err, rutil.ErrNotFound) {
+				// Note: check the `json_name` in the `protobuf` tag for headers with hyphens,
+				// since struct fields cannot contain hyphens.
+				v, err = rutil.StructFieldByTag(msg, "protobuf", fmt.Sprintf("json=%s", k))
+			}
 			if err != nil {
 				return nil, errors.BadRequest("go.micro.client", "%+v", err)
 			}
