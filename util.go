@@ -116,8 +116,10 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 			switch tn {
 			case "protobuf": // special
 				for _, p := range tp {
-					if idx := strings.Index(p, "name="); idx > 0 {
-						t = &tag{key: tn, name: p[idx:]}
+					prefix := "name="
+					if strings.HasPrefix(p, prefix) {
+						t = &tag{key: tn, name: p[len(prefix):]}
+						break
 					}
 				}
 			default:
@@ -135,10 +137,10 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 			// fallback to lowercase
 			t.name = strings.ToLower(fld.Name)
 		}
-		if _, ok := parameters["header"][cname]; ok {
+		if _, ok := parameters["header"][cname]; ok || containsKeyInsensitive(parameters["header"], cname) {
 			continue
 		}
-		if _, ok := parameters["cookie"][cname]; ok {
+		if _, ok := parameters["cookie"][cname]; ok || containsKeyInsensitive(parameters["cookie"], cname) {
 			continue
 		}
 
@@ -411,4 +413,14 @@ func getParam(val reflect.Value) string {
 		v = fmt.Sprintf("%v", val.Interface())
 	}
 	return v
+}
+
+func containsKeyInsensitive(m map[string]string, key string) bool {
+	key = strings.ToLower(key)
+	for k := range m {
+		if strings.ToLower(k) == key {
+			return true
+		}
+	}
+	return false
 }
