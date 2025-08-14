@@ -96,14 +96,9 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 		}
 		fld := tmsg.Type().Field(i)
 		// Skip unexported fields.
-		if fld.PkgPath != "" {
-			continue
-		}
-		/* check for empty PkgPath can be replaced with new method IsExported
 		if !fld.IsExported() {
 			continue
 		}
-		*/
 		t := &tag{}
 		for _, tn := range tags {
 			ts, ok := fld.Tag.Lookup(tn)
