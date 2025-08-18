@@ -89,6 +89,12 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 	// copy cycle
 
 	cleanPath := make(map[string]bool)
+
+	var (
+		bodyOverride    interface{}
+		bodyOverrideSet bool
+	)
+
 	for i := 0; i < tmsg.NumField(); i++ {
 		val := tmsg.Field(i)
 		if val.IsZero() {
@@ -111,7 +117,7 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 			switch tn {
 			case "protobuf": // special
 				for _, p := range tp {
-					prefix := "name="
+					prefix := "json="
 					if strings.HasPrefix(p, prefix) {
 						t = &tag{key: tn, name: p[len(prefix):]}
 						break
@@ -132,10 +138,10 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 			// fallback to lowercase
 			t.name = strings.ToLower(fld.Name)
 		}
-		if _, ok := parameters["header"][cname]; ok || containsKeyInsensitive(parameters["header"], cname) {
+		if _, ok := parameters["header"][cname]; ok {
 			continue
 		}
-		if _, ok := parameters["cookie"][cname]; ok || containsKeyInsensitive(parameters["cookie"], cname) {
+		if _, ok := parameters["cookie"][cname]; ok {
 			continue
 		}
 
@@ -199,7 +205,24 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 			}
 			if (body == "*" || body == t.name) && method != http.MethodGet {
 				if tnmsg.Field(i).CanSet() {
-					tnmsg.Field(i).Set(val)
+					if body == t.name {
+						switch val.Kind() {
+						case reflect.Struct:
+							bodyOverride = val.Interface()
+							bodyOverrideSet = true
+						case reflect.Ptr:
+							if !val.IsNil() && val.Elem().Kind() == reflect.Struct {
+								bodyOverride = val.Elem().Interface()
+								bodyOverrideSet = true
+							} else {
+								tnmsg.Field(i).Set(val)
+							}
+						default:
+							tnmsg.Field(i).Set(val)
+						}
+					} else {
+						tnmsg.Field(i).Set(val)
+					}
 				}
 			} else if method == http.MethodGet {
 				if val.Type().Kind() == reflect.Slice {
@@ -260,6 +283,10 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 	if len(values) > 0 {
 		_, _ = b.WriteRune('?')
 		_, _ = b.WriteString(values.Encode())
+	}
+
+	if bodyOverrideSet {
+		return b.String(), bodyOverride, nil
 	}
 
 	// rutil.ZeroEmpty(tnmsg.Interface())
@@ -408,14 +435,4 @@ func getParam(val reflect.Value) string {
 		v = fmt.Sprintf("%v", val.Interface())
 	}
 	return v
-}
-
-func containsKeyInsensitive(m map[string]string, key string) bool {
-	key = strings.ToLower(key)
-	for k := range m {
-		if strings.ToLower(k) == key {
-			return true
-		}
-	}
-	return false
 }
