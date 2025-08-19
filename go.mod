@@ -13,7 +13,6 @@ require (
 	github.com/spf13/cast v1.7.1 // indirect
 	go.unistack.org/micro-proto/v4 v4.1.0 // indirect
 	golang.org/x/sys v0.32.0 // indirect
-	golang.org/x/text v0.22.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250425173222-7b384671a197 // indirect
 	google.golang.org/grpc v1.72.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect

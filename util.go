@@ -207,12 +207,9 @@ func newPathRequest(path string, method string, body string, msg interface{}, ta
 				if tnmsg.Field(i).CanSet() {
 					if body == t.name {
 						switch val.Kind() {
-						case reflect.Struct:
-							bodyOverride = val.Interface()
-							bodyOverrideSet = true
 						case reflect.Ptr:
 							if !val.IsNil() && val.Elem().Kind() == reflect.Struct {
-								bodyOverride = val.Elem().Interface()
+								bodyOverride = val.Interface()
 								bodyOverrideSet = true
 							} else {
 								tnmsg.Field(i).Set(val)
