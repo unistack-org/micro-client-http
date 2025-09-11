@@ -1,19 +1,26 @@
 # HTTP Client
 ![Coverage](https://img.shields.io/badge/Coverage-22.5%25-red)
 
-This plugin is a http client for micro.
+This plugin is an HTTP client for [Micro](https://pkg.go.dev/go.unistack.org/micro/v4).
+It implements the [micro.Client](https://pkg.go.dev/go.unistack.org/micro/v4/client#Client) interface.
 
 ## Overview
 
-The http client wraps `net/http` to provide a robust micro client with service discovery, load balancing and streaming. 
-It complies with the [micro.Client](https://godoc.org/go.unistack.org/micro-client-http/v3#Client) interface.
+The HTTP client wraps `net/http` to provide a robust client with service discovery, load balancing and 
+implements HTTP rules defined in the [google/api/http.proto](https://github.com/googleapis/googleapis/blob/master/google/api/http.proto) specification.
+
+## Limitations
+
+* Streaming is not yet implemented.
+* Only protobuf-generated messages are supported.
 
 ## Usage
 
-### Use directly
-
 ```go
-import "go.unistack.org/micro-client-http/v3"
+import (
+    "go.unistack.org/micro/v4"
+    http "go.unistack.org/micro-client-http/v4"
+)
 
 service := micro.NewService(
 	micro.Name("my.service"),
@@ -21,43 +28,127 @@ service := micro.NewService(
 )
 ```
 
-### Call Service
+### Simple call
 
-Assuming you have a http service "my.service" with path "/foo/bar"
 ```go
-// new client
-client := http.NewClient()
+import (
+    "go.unistack.org/micro/v4/client"
+    http "go.unistack.org/micro-client-http/v4"
+    jsoncodec "go.unistack.org/micro-codec-json/v4"
+)
 
-// create request/response
-request := client.NewRequest("my.service", "/foo/bar", protoRequest{})
-response := new(protoResponse)
+c := http.NewClient(
+    client.Codec("application/json", jsoncodec.NewCodec()),
+)
 
-// call service
-err := client.Call(context.TODO(), request, response)
+req := c.NewRequest(
+    "user-service",
+    "/user/{user_id}/order/{order_id}",
+    &protoReq{UserId: "123", OrderId: 456},
+)
+rsp := new(protoRsp)
+
+err := c.Call(
+    ctx,
+    req,
+    rsp,
+    client.WithAddress("example.com"),
+)
 ```
 
-or you can call any rest api or site and unmarshal to response struct
+### Call with specific options
+
 ```go
-// new client
-client := client.NewClientCallOptions(http.NewClient(), http.Address("https://api.github.com"))
+import (
+    "go.unistack.org/micro/v4/client"
+    http "go.unistack.org/micro-client-http/v4"
+)
 
-req := client.NewRequest("github", "/users/vtolstov", nil)
-rsp := make(map[string]interface{})
-
-err := c.Call(context.TODO(), req, &rsp, mhttp.Method(http.MethodGet)) 
+err := c.Call(
+    ctx,
+    req,
+    rsp,
+    client.WithAddress("example.com"),
+    http.Method("POST"),
+    http.Path("/user/{user_id}/order/{order_id}"),
+    http.Body("*"), // <- use all fields from the proto request as HTTP request body or specify a single field name to use only that field (see Google API HTTP spec: google/api/http.proto)
+)
 ```
 
-Look at http_test.go for detailed use.
+### Call with request headers
 
-### Encoding
-
-Default protobuf with content-type application/proto
 ```go
-client.NewRequest("service", "/path", protoRequest{})
+import (
+    "go.unistack.org/micro/v4/metadata"
+    http "go.unistack.org/micro-client-http/v4"
+)
+
+ctx := metadata.NewOutgoingContext(ctx, metadata.Pairs(
+    "Authorization", "Bearer token",
+    "My-Header", "My-Header-Value",
+))
+
+err := c.Call(
+    ctx,
+    req,
+    rsp,
+    http.Header("Authorization", "true", "My-Header", "false"), // <- call option that declares required/optional headers
+)
 ```
 
-Json with content-type application/json
+### Call with response headers
+
 ```go
-client.NewJsonRequest("service", "/path", jsonRequest{})
+import (
+    "go.unistack.org/micro/v4/metadata"
+    http "go.unistack.org/micro-client-http/v4"
+)
+
+respMetadata := metadata.Metadata{}
+
+err := c.Call(
+    ctx,
+    req,
+    rsp,
+    client.WithResponseMetadata(&respMetadata), // <- metadata with response headers
+)
 ```
 
+### Call with cookies
+
+```go
+import (
+    "go.unistack.org/micro/v4/metadata"
+    http "go.unistack.org/micro-client-http/v4"
+)
+
+ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(
+    "Cookie", "session_id=abc123; theme=dark",
+))
+
+err := c.Call(
+    ctx,
+    req,
+    rsp,
+    http.Cookie("session_id", "true", "theme", "false"), // <- call option that declares required/optional cookies
+)
+```
+
+### Call with error mapping
+
+```go
+import (
+    http "go.unistack.org/micro-client-http/v4"
+    jsoncodec "go.unistack.org/micro-codec-json/v4"
+)
+
+err := c.Call(
+    ctx,
+    req,
+    rsp,
+    http.ErrorMap(map[string]any{
+        "default": &protoDefaultError{}, // <- default case
+        "403":     &protoSpecialError{}, // <- key is the HTTP status code that is mapped to this error
+    }),
+)
+```
