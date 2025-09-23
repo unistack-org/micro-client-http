@@ -6,30 +6,10 @@ import (
 )
 
 type httpRequest struct {
-	service     string
-	method      string
-	contentType string
-	request     interface{}
-	opts        client.RequestOptions
-}
-
-func newHTTPRequest(service, method string, request interface{}, contentType string, opts ...client.RequestOption) client.Request {
-	options := client.NewRequestOptions(opts...)
-	if len(options.ContentType) == 0 {
-		options.ContentType = contentType
-	}
-
-	return &httpRequest{
-		service:     service,
-		method:      method,
-		request:     request,
-		contentType: options.ContentType,
-		opts:        options,
-	}
-}
-
-func (h *httpRequest) ContentType() string {
-	return h.contentType
+	service string
+	method  string
+	request any
+	opts    client.RequestOptions
 }
 
 func (h *httpRequest) Service() string {
@@ -44,12 +24,16 @@ func (h *httpRequest) Endpoint() string {
 	return h.method
 }
 
-func (h *httpRequest) Codec() codec.Codec {
-	return nil
+func (h *httpRequest) ContentType() string {
+	return h.opts.ContentType
 }
 
-func (h *httpRequest) Body() interface{} {
+func (h *httpRequest) Body() any {
 	return h.request
+}
+
+func (h *httpRequest) Codec() codec.Codec {
+	return nil
 }
 
 func (h *httpRequest) Stream() bool {
