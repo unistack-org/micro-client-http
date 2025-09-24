@@ -802,6 +802,7 @@ func TestClient_Call_ErrorsMap(t *testing.T) {
 				opts...,
 			)
 
+			require.NoError(t, err)
 			s, ok := status.FromError(err)
 			require.True(t, ok)
 			require.NotNil(t, s)
