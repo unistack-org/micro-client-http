@@ -248,10 +248,9 @@ func (c *Client) parseRsp(ctx context.Context, hrsp *http.Response, rsp any, opt
 		return nil
 	}
 
-	var (
-		s         = status.New(hrsp.StatusCode)
-		mappedErr any
-	)
+	s := status.New(hrsp.StatusCode)
+
+	var mappedErr any
 
 	errMap, ok := errorMapFromOpts(opts)
 	if ok && errMap != nil {
