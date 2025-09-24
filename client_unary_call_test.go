@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	jsoncodec "go.unistack.org/micro-codec-json/v4"
 	"go.unistack.org/micro/v4/client"
+	microerr "go.unistack.org/micro/v4/errors"
 	"go.unistack.org/micro/v4/metadata"
 	"google.golang.org/protobuf/proto"
 
@@ -1304,6 +1305,12 @@ func TestClient_Call_RequestTimeoutError(t *testing.T) {
 		opts...,
 	)
 	require.Error(t, err)
+	require.Equal(t, err, &microerr.Error{
+		ID:     "go.micro.client",
+		Detail: "context deadline exceeded",
+		Status: "Request Timeout",
+		Code:   http.StatusRequestTimeout,
+	})
 }
 
 func TestClient_Call_ContextDeadlineError(t *testing.T) {
@@ -1346,6 +1353,12 @@ func TestClient_Call_ContextDeadlineError(t *testing.T) {
 		opts...,
 	)
 	require.Error(t, err)
+	require.Equal(t, err, &microerr.Error{
+		ID:     "go.micro.client",
+		Detail: "context deadline exceeded",
+		Status: "Request Timeout",
+		Code:   http.StatusRequestTimeout,
+	})
 }
 
 func TestClient_Call_ContextCanceled(t *testing.T) {
@@ -1388,4 +1401,10 @@ func TestClient_Call_ContextCanceled(t *testing.T) {
 		opts...,
 	)
 	require.Error(t, err)
+	require.Equal(t, err, &microerr.Error{
+		ID:     "go.micro.client",
+		Detail: "context canceled",
+		Status: "Request Timeout",
+		Code:   http.StatusRequestTimeout,
+	})
 }
