@@ -16,6 +16,7 @@ import (
 
 	httpcli "go.unistack.org/micro-client-http/v4"
 	pb "go.unistack.org/micro-client-http/v4/builder/proto"
+	"go.unistack.org/micro-client-http/v4/status"
 )
 
 func TestClient_Call_Get(t *testing.T) {
@@ -657,9 +658,9 @@ func TestClient_Call_ErrorsMap(t *testing.T) {
 	)
 
 	tests := []struct {
-		name        string
-		serverMock  func() *httptest.Server
-		expectedErr error
+		name           string
+		serverMock     func() *httptest.Server
+		expectedStatus *status.Status
 	}{
 		{
 			name: "default error",
@@ -699,7 +700,15 @@ func TestClient_Call_ErrorsMap(t *testing.T) {
 					require.NoError(t, err)
 				}))
 			},
-			expectedErr: &defaultError{Code: "default-error-code", Msg: "default-error-message"},
+			expectedStatus: func() *status.Status {
+				s, _ := status.New(http.StatusBadRequest).WithDetails(
+					&defaultError{
+						Code: "default-error-code",
+						Msg:  "default-error-message",
+					},
+				)
+				return s
+			}(),
 		},
 		{
 			name: "special error",
@@ -740,7 +749,16 @@ func TestClient_Call_ErrorsMap(t *testing.T) {
 					require.NoError(t, err)
 				}))
 			},
-			expectedErr: &specialError{Code: "special-error-code", Msg: "special-error-message", Warning: "special-error-warning"},
+			expectedStatus: func() *status.Status {
+				s, _ := status.New(http.StatusForbidden).WithDetails(
+					&specialError{
+						Code:    "special-error-code",
+						Msg:     "special-error-message",
+						Warning: "special-error-warning",
+					},
+				)
+				return s
+			}(),
 		},
 	}
 
@@ -783,13 +801,102 @@ func TestClient_Call_ErrorsMap(t *testing.T) {
 				opts...,
 			)
 
-			require.Equal(t, tt.expectedErr.Error(), err.Error())
+			s, ok := status.FromError(err)
+			require.True(t, ok)
+			require.NotNil(t, s)
+			require.Equal(t, tt.expectedStatus, s)
 			require.Empty(t, rsp)
 
 			require.Equal(t, "application/json", respMetadata.GetJoined("Content-Type"))
 			require.Equal(t, "My-Header-Value", respMetadata.GetJoined("My-Header"))
 		})
 	}
+}
+
+func TestClient_Call_WithoutErrorsMap(t *testing.T) {
+	type (
+		request  = pb.Test_Client_Call_Request
+		response = pb.Test_Client_Call_Response
+	)
+
+	serverMock := func() *httptest.Server {
+		return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Validate request
+			require.Equal(t, "POST", r.Method)
+			require.Equal(t, "/user/products", r.URL.RequestURI())
+
+			require.Equal(t, "application/json", r.Header.Get("Content-Type"))
+			require.Equal(t, "Bearer token", r.Header.Get("Authorization"))
+			require.Equal(t, "My-Header-Value", r.Header.Get("My-Header"))
+
+			buf, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			defer r.Body.Close()
+
+			c := jsoncodec.NewCodec()
+
+			req := &request{}
+			err = c.Unmarshal(buf, req)
+			require.NoError(t, err)
+			require.True(t, proto.Equal(&request{UserId: "123", OrderId: 456}, req))
+
+			// Return response
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("My-Header", "My-Header-Value")
+			w.WriteHeader(http.StatusConflict)
+
+			resp := map[string]interface{}{"message": "not-mapped-error"}
+			buf, err = c.Marshal(resp)
+			require.NoError(t, err)
+			_, err = w.Write(buf)
+			require.NoError(t, err)
+		}))
+	}
+	expectedStatus := func() *status.Status {
+		return status.New(http.StatusConflict).WithRawBody([]byte(`{"message":"not-mapped-error"}`))
+	}()
+
+	server := serverMock()
+	defer server.Close()
+
+	httpClient := httpcli.NewClient(
+		client.Codec("application/json", jsoncodec.NewCodec()),
+	)
+
+	var (
+		ctx = metadata.NewOutgoingContext(
+			context.Background(),
+			metadata.Pairs("Authorization", "Bearer token", "My-Header", "My-Header-Value"),
+		)
+		req = &request{UserId: "123", OrderId: 456}
+		rsp = &response{}
+
+		respMetadata = metadata.Metadata{}
+	)
+
+	opts := []client.CallOption{
+		client.WithAddress(server.URL),
+		client.WithResponseMetadata(&respMetadata),
+		httpcli.Method(http.MethodPost),
+		httpcli.Path("/user/products"),
+		httpcli.Body("*"),
+	}
+
+	err := httpClient.Call(
+		ctx,
+		httpClient.NewRequest("test.service", "Test.Call", req),
+		rsp,
+		opts...,
+	)
+
+	s, ok := status.FromError(err)
+	require.True(t, ok)
+	require.NotNil(t, s)
+	require.Equal(t, expectedStatus, s)
+	require.Empty(t, rsp)
+
+	require.Equal(t, "application/json", respMetadata.GetJoined("Content-Type"))
+	require.Equal(t, "My-Header-Value", respMetadata.GetJoined("My-Header"))
 }
 
 func TestClient_Call_HeadersAndCookies(t *testing.T) {
