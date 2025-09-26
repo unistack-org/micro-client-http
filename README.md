@@ -159,5 +159,4 @@ if err != nil {...}
 code    := s.Code()     // HTTP status code
 message := s.Message()  // HTTP status text
 details := s.Details()  // Error type mapped from ErrorMap
-rawBody := s.RawBody()  // Raw response body when ErrorMap is not defined; recommended to use ErrorMap instead
 ```

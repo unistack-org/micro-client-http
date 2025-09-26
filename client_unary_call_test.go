@@ -650,7 +650,7 @@ func TestClient_Call_Delete(t *testing.T) {
 	}
 }
 
-func TestClient_Call_ErrorsMap(t *testing.T) {
+func TestClient_Call_APIError_WithErrorsMap(t *testing.T) {
 	type (
 		request      = pb.Test_Client_Call_Request
 		response     = pb.Test_Client_Call_Response
@@ -701,15 +701,12 @@ func TestClient_Call_ErrorsMap(t *testing.T) {
 					require.NoError(t, err)
 				}))
 			},
-			expectedStatus: func() *status.Status {
-				s, _ := status.New(http.StatusBadRequest).WithDetails(
-					&defaultError{
-						Code: "default-error-code",
-						Msg:  "default-error-message",
-					},
-				)
-				return s
-			}(),
+			expectedStatus: status.New(http.StatusBadRequest).WithDetails(
+				&defaultError{
+					Code: "default-error-code",
+					Msg:  "default-error-message",
+				},
+			),
 		},
 		{
 			name: "special error",
@@ -750,16 +747,13 @@ func TestClient_Call_ErrorsMap(t *testing.T) {
 					require.NoError(t, err)
 				}))
 			},
-			expectedStatus: func() *status.Status {
-				s, _ := status.New(http.StatusForbidden).WithDetails(
-					&specialError{
-						Code:    "special-error-code",
-						Msg:     "special-error-message",
-						Warning: "special-error-warning",
-					},
-				)
-				return s
-			}(),
+			expectedStatus: status.New(http.StatusForbidden).WithDetails(
+				&specialError{
+					Code:    "special-error-code",
+					Msg:     "special-error-message",
+					Warning: "special-error-warning",
+				},
+			),
 		},
 	}
 
@@ -815,7 +809,7 @@ func TestClient_Call_ErrorsMap(t *testing.T) {
 	}
 }
 
-func TestClient_Call_WithoutErrorsMap(t *testing.T) {
+func TestClient_Call_APIError_WithoutErrorsMap(t *testing.T) {
 	type (
 		request  = pb.Test_Client_Call_Request
 		response = pb.Test_Client_Call_Response
@@ -854,9 +848,7 @@ func TestClient_Call_WithoutErrorsMap(t *testing.T) {
 			require.NoError(t, err)
 		}))
 	}
-	expectedStatus := func() *status.Status {
-		return status.New(http.StatusConflict).WithRawBody([]byte(`{"message":"not-mapped-error"}`))
-	}()
+	expectedStatus := status.New(http.StatusConflict)
 
 	server := serverMock()
 	defer server.Close()
