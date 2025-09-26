@@ -153,10 +153,12 @@ err := c.Call(
     }),
 )
 
-s, err := status.FromError(err)
-if err != nil {...}
-
-code    := s.Code()     // HTTP status code
-message := s.Message()  // HTTP status text
-details := s.Details()  // Error type mapped from ErrorMap
+if err != nil {
+    s, ok := status.FromError(err)
+    if !ok {...}
+    
+    code    := s.Code()     // HTTP status code
+    message := s.Message()  // HTTP status text
+    details := s.Details()  // Error type mapped from ErrorMap
+}
 ```
