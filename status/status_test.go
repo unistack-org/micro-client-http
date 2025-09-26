@@ -78,49 +78,8 @@ func TestStatus_Message(t *testing.T) {
 }
 
 func TestStatus_WithDetails(t *testing.T) {
-	tests := []struct {
-		name        string
-		input       any
-		wantDetails any
-		wantErr     bool
-	}{
-		{
-			name:    "nil value",
-			input:   nil,
-			wantErr: true,
-		},
-		{
-			name:    "invalid non-error type",
-			input:   "not an error",
-			wantErr: true,
-		},
-		{
-			name:        "valid error type",
-			input:       errors.New("some detail"),
-			wantDetails: errors.New("some detail"),
-			wantErr:     false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s, err := status.New(http.StatusNotFound).WithDetails(tt.input)
-
-			if tt.wantErr {
-				require.Error(t, err)
-				require.Nil(t, s)
-			} else {
-				require.NoError(t, err)
-				require.NotNil(t, s)
-				require.Equal(t, tt.wantDetails, s.Details())
-			}
-		})
-	}
-}
-
-func TestStatus_WithRawBody(t *testing.T) {
-	s := status.New(http.StatusNotFound).WithRawBody([]byte("data"))
-	require.Equal(t, []byte("data"), s.RawBody())
+	s := status.New(http.StatusNotFound).WithDetails(errors.New("some error"))
+	require.Equal(t, errors.New("some error"), s.Details())
 }
 
 func TestStatus_String(t *testing.T) {

@@ -261,17 +261,12 @@ func (c *Client) parseRsp(ctx context.Context, hrsp *http.Response, rsp any, opt
 	}
 
 	if !ok || mappedErr == nil {
-		return s.WithRawBody(buf).Err()
+		return s.Err()
 	}
 
 	if err = cf.Unmarshal(buf, mappedErr); err != nil {
 		return errors.InternalServerError("go.micro.client", "unmarshal response: %v", err)
 	}
 
-	s, err = s.WithDetails(mappedErr)
-	if err != nil {
-		return errors.InternalServerError("go.micro.client", "with details: %v", err)
-	}
-
-	return s.Err()
+	return s.WithDetails(mappedErr).Err()
 }

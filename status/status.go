@@ -10,8 +10,7 @@ import (
 type Status struct {
 	code    int    // HTTP status code
 	message string // HTTP status text
-	details any    // parsed error object (if successfully unmarshalled)
-	rawBody []byte // raw HTTP response body
+	details any    // parsed error object
 }
 
 func New(statusCode int) *Status {
@@ -41,20 +40,8 @@ func (s *Status) Details() any {
 	return s.details
 }
 
-func (s *Status) RawBody() []byte {
-	return s.rawBody
-}
-
-func (s *Status) WithDetails(details any) (*Status, error) {
-	if _, ok := details.(error); !ok {
-		return nil, errors.New("details does not implement the error interface")
-	}
+func (s *Status) WithDetails(details any) *Status {
 	s.details = details
-	return s, nil
-}
-
-func (s *Status) WithRawBody(raw []byte) *Status {
-	s.rawBody = raw
 	return s
 }
 
