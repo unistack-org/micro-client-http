@@ -1,5 +1,5 @@
 # HTTP Client
-![Coverage](https://img.shields.io/badge/Coverage-42.7%25-yellow)
+![Coverage](https://img.shields.io/badge/Coverage-42.4%25-yellow)
 
 This plugin is an HTTP client for [Micro](https://pkg.go.dev/go.unistack.org/micro/v4).
 It implements the [micro.Client](https://pkg.go.dev/go.unistack.org/micro/v4/client#Client) interface.
