@@ -139,6 +139,7 @@ err := c.Call(
 ```go
 import (
     http "go.unistack.org/micro-client-http/v4"
+    status "go.unistack.org/micro-client-http/v4/status"
     jsoncodec "go.unistack.org/micro-codec-json/v4"
 )
 
@@ -151,4 +152,13 @@ err := c.Call(
         "403":     &protoSpecialError{}, // <- key is the HTTP status code that is mapped to this error
     }),
 )
+
+if err != nil {
+    s, ok := status.FromError(err)
+    if !ok {...}
+    
+    code    := s.Code()     // HTTP status code
+    message := s.Message()  // HTTP status text
+    details := s.Details()  // Error type mapped from ErrorMap
+}
 ```

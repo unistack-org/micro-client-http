@@ -16,6 +16,8 @@ import (
 	"go.unistack.org/micro/v4/logger"
 	"go.unistack.org/micro/v4/metadata"
 	"go.unistack.org/micro/v4/selector"
+
+	"go.unistack.org/micro-client-http/v4/status"
 )
 
 func (c *Client) fnCall(ctx context.Context, req client.Request, rsp any, opts ...client.CallOption) error {
@@ -246,6 +248,8 @@ func (c *Client) parseRsp(ctx context.Context, hrsp *http.Response, rsp any, opt
 		return nil
 	}
 
+	s := status.New(hrsp.StatusCode)
+
 	var mappedErr any
 
 	errMap, ok := errorMapFromOpts(opts)
@@ -257,17 +261,12 @@ func (c *Client) parseRsp(ctx context.Context, hrsp *http.Response, rsp any, opt
 	}
 
 	if !ok || mappedErr == nil {
-		return errors.New("go.micro.client", string(buf), int32(hrsp.StatusCode))
+		return s.Err()
 	}
 
 	if err = cf.Unmarshal(buf, mappedErr); err != nil {
 		return errors.InternalServerError("go.micro.client", "unmarshal response: %v", err)
 	}
 
-	if v, ok := mappedErr.(error); ok {
-		return v
-	}
-
-	// if the error map item does not implement the error interface, wrap it
-	return &Error{err: mappedErr}
+	return s.WithDetails(mappedErr).Err()
 }
