@@ -1,0 +1,330 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "go.unistack.org/micro-client-http/v3/proto;proto";
+
+message TestRequestBuilder {}
+
+message Test_PathOnly {
+  message PrimitiveCase {
+    string userId = 1 [json_name = "user_id"];
+    int64  orderId = 2 [json_name = "order_id"];
+  }
+
+  message NestedCase {
+    User user = 1;
+    Order order = 2;
+
+    message User {
+      string id = 1;
+    }
+    message Order {
+      int64 id = 1;
+      Product product = 2;
+
+      message Product {
+        int64 id = 1;
+      }
+    }
+  }
+
+  message MultipleCase {
+    string userId = 1 [json_name = "user_id"];
+    Order order = 2;
+
+    message Order {
+      string id = 1;
+    }
+  }
+
+  message RepeatedCase {
+    repeated string userId = 1 [json_name = "user_id"];
+    int64  orderId = 2 [json_name = "order_id"];
+  }
+
+  message NonPrimitiveMessageCase {
+    User userId = 1 [json_name = "user_id"];
+    int64  orderId = 2 [json_name = "order_id"];
+
+    message User {
+      string id = 1;
+    }
+  }
+
+  message NonPrimitiveMapCase {
+    map<string, string> userId = 1 [json_name = "user_id"];
+    int64  orderId = 2 [json_name = "order_id"];
+  }
+
+  message PatternCase {
+    string pattern = 1;
+  }
+
+  message CompositePatternCase {
+    string pattern = 1;
+    string orderId = 2 [json_name = "order_id"];
+    string productId = 3 [json_name = "product_id"];
+  }
+}
+
+message Test_QueryOnly {
+  message PrimitiveCase {
+    string userId = 1 [json_name = "user_id"];
+    int64  orderId = 2 [json_name = "order_id"];
+    bool flag = 3;
+  }
+
+  message RepeatedCase {
+    repeated string strings = 1;
+    repeated int64 integers = 2;
+  }
+
+  message NestedMessageCase {
+    string userId = 1 [json_name = "user_id"];
+    Filter filter = 2;
+
+    message Filter {
+      int64 age = 1;
+      string name = 2;
+      SubFilter subFilter = 3 [json_name = "sub_filter"];
+
+      message SubFilter {
+        int64 subAge = 1 [json_name = "sub_age"];
+        string subName = 2 [json_name = "sub_name"];
+      }
+    }
+  }
+
+  message NestedMapCase {
+    string userId = 1 [json_name = "user_id"];
+    map<string, string> firstFilter = 2 [json_name = "first_filter"];
+    map<string, SubFilter> secondFilter = 4 [json_name = "second_filter"];
+    message SubFilter {
+      int64 subAge = 1 [json_name = "sub_age"];
+      string subName = 2 [json_name = "sub_name"];
+    }
+  }
+
+  message MultipleCase {
+    string userId = 1 [json_name = "user_id"];
+    repeated string strings = 2;
+    Filter firstFilter = 3 [json_name = "first_filter"];
+    map<string, SubFilter> secondFilter = 4 [json_name = "second_filter"];
+
+    message Filter {
+      int64 age = 1;
+      SubFilter subFilter = 2 [json_name = "sub_filter"];
+    }
+    message SubFilter {
+      int64 subAge = 1 [json_name = "sub_age"];
+    }
+  }
+
+  message RepeatedMessageCase {
+    repeated Filter filters = 1;
+    message Filter {
+      int64 age = 1;
+    }
+  }
+}
+
+message Test_BodyOnly {
+  message PrimitiveCase {
+    string userId = 1 [json_name = "user_id"];
+    int64  orderId = 2 [json_name = "order_id"];
+    bool flag = 3;
+    repeated string strings = 4;
+    Product product = 6;
+
+    message Product {
+      string id = 1;
+      string name = 2;
+    }
+  }
+
+  message NestedCase {
+    string userId = 1 [json_name = "user_id"];
+    Filter first_filter = 2 [json_name = "first_filter"];
+    Filter second_filter = 3 [json_name = "second_filter"];
+
+    message Filter {
+      int64 age = 1;
+      string name = 2;
+      SubFilter subFilter = 3 [json_name = "sub_filter"];
+
+      message SubFilter {
+        int64 subAge = 1 [json_name = "sub_age"];
+        string subName = 2 [json_name = "sub_name"];
+      }
+    }
+  }
+
+  message RepeatedMessageCase {
+    string userId = 1 [json_name = "user_id"];
+    repeated Product products = 2 [json_name = "products"];
+
+    message Product {
+      string id = 1;
+      string name = 2;
+    }
+  }
+
+  message MapCase {
+    map<string, string> firstFilter = 1 [json_name = "first_filter"];
+    map<string, SubFilter> secondFilter = 2 [json_name = "second_filter"];
+
+    message SubFilter {
+      int64 subAge = 1 [json_name = "sub_age"];
+      string subName = 2 [json_name = "sub_name"];
+    }
+  }
+
+  message MultipleCase {
+    string userId = 1 [json_name = "user_id"];
+    repeated SubFilter firstFilter = 2 [json_name = "first_filter"];
+    map<string, SubFilter> secondFilter = 3 [json_name = "second_filter"];
+    SubFilter thirdFilter = 4 [json_name = "third_filter"];
+
+    message SubFilter {
+      int64 subAge = 1 [json_name = "sub_age"];
+      string subName = 2 [json_name = "sub_name"];
+    }
+  }
+}
+
+message Test_Mixed {
+  message PrimitiveCase {
+    string userId = 1 [json_name = "user_id"];
+    int64  orderId = 2 [json_name = "order_id"];
+    Product product = 3;
+
+    message Product {
+      string id = 1;
+      string name = 2;
+    }
+  }
+
+  message NestedCase {
+    string userId = 1 [json_name = "user_id"];
+    Filter first_filter = 2 [json_name = "first_filter"];
+    Filter second_filter = 3 [json_name = "second_filter"];
+
+    message Filter {
+      int64 age = 1;
+      string name = 2;
+      SubFilter subFilter = 3 [json_name = "sub_filter"];
+
+      message SubFilter {
+        int64 subAge = 1 [json_name = "sub_age"];
+        string subName = 2 [json_name = "sub_name"];
+      }
+    }
+  }
+
+  message RepeatedMessageCase {
+    string userId = 1 [json_name = "user_id"];
+    repeated Product products = 2 [json_name = "products"];
+
+    message Product {
+      string id = 1;
+      string name = 2;
+    }
+  }
+
+  message MapCase {
+    map<string, string> firstFilter = 1 [json_name = "first_filter"];
+    map<string, SubFilter> secondFilter = 2 [json_name = "second_filter"];
+
+    message SubFilter {
+      int64 subAge = 1 [json_name = "sub_age"];
+      string subName = 2 [json_name = "sub_name"];
+    }
+  }
+
+  message MultipleCase {
+    string userId = 1 [json_name = "user_id"];
+    repeated SubFilter firstFilter = 2 [json_name = "first_filter"];
+    map<string, SubFilter> secondFilter = 3 [json_name = "second_filter"];
+    SubFilter thirdFilter = 4 [json_name = "third_filter"];
+
+    message SubFilter {
+      int64 subAge = 1 [json_name = "sub_age"];
+      string subName = 2 [json_name = "sub_name"];
+    }
+  }
+}
+
+message Benchmark {
+  message Case5 {
+    string field1 = 1;
+    string field2 = 2;
+    string field3 = 3;
+    string field4 = 4;
+    string field5 = 5;
+  }
+  message Case10 {
+    string field1 = 1;
+    string field2 = 2;
+    string field3 = 3;
+    string field4 = 4;
+    string field5 = 5;
+    string field6 = 6;
+    string field7 = 7;
+    string field8 = 8;
+    string field9 = 9;
+    string field10 = 10;
+  }
+  message Case30 {
+    string field1 = 1;
+    string field2 = 2;
+    string field3 = 3;
+    string field4 = 4;
+    string field5 = 5;
+    string field6 = 6;
+    string field7 = 7;
+    string field8 = 8;
+    string field9 = 9;
+    string field10 = 10;
+    string field11 = 11;
+    string field12 = 12;
+    string field13 = 13;
+    string field14 = 14;
+    string field15 = 15;
+    string field16 = 16;
+    string field17 = 17;
+    string field18 = 18;
+    string field19 = 19;
+    string field20 = 20;
+    string field21 = 21;
+    string field22 = 22;
+    string field23 = 23;
+    string field24 = 24;
+    string field25 = 25;
+    string field26 = 26;
+    string field27 = 27;
+    string field28 = 28;
+    string field29 = 29;
+    string field30 = 30;
+  }
+}
+
+message Test_Client_Call {
+  message Request {
+    string userId = 1 [json_name = "user_id"];
+    int64  orderId = 2 [json_name = "order_id"];
+  }
+  message Response {
+    string id = 1;
+    string name = 2;
+  }
+  message DefaultError {
+    string code = 1;
+    string msg = 2;
+  }
+  message SpecialError {
+    string code = 1;
+    string msg = 2;
+    string warning = 3;
+  }
+}
