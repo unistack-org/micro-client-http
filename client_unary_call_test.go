@@ -1186,6 +1186,98 @@ func TestClient_Call_HeadersAndCookies(t *testing.T) {
 	}
 }
 
+func TestClient_Call_SetCookie(t *testing.T) {
+	type (
+		request  = pb.Test_Client_Call_Request
+		response = pb.Test_Client_Call_Response
+	)
+
+	serverMock := func() *httptest.Server {
+		return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Validate request
+			require.Equal(t, "POST", r.Method)
+			require.Equal(t, "/user/products", r.URL.RequestURI())
+
+			require.Equal(t, "application/json", r.Header.Get("Content-Type"))
+			require.Equal(t, "Bearer token", r.Header.Get("Authorization"))
+			require.Equal(t, "My-Header-Value", r.Header.Get("My-Header"))
+
+			buf, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			defer r.Body.Close()
+
+			c := jsoncodec.NewCodec()
+
+			req := &request{}
+			err = c.Unmarshal(buf, req)
+			require.NoError(t, err)
+			require.True(t, proto.Equal(&request{UserId: "123", OrderId: 456}, req))
+
+			// Return response
+			cookieN1, err := http.ParseSetCookie("sessionid=abc123; Path=/; HttpOnly")
+			require.NoError(t, err)
+			http.SetCookie(w, cookieN1)
+
+			cookieN2, err := http.ParseSetCookie("theme=dark; Path=/; Max-Age=3600")
+			require.NoError(t, err)
+			http.SetCookie(w, cookieN2)
+
+			cookieN3, err := http.ParseSetCookie("lang=en-US; Path=/")
+			require.NoError(t, err)
+			http.SetCookie(w, cookieN3)
+
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("My-Header", "My-Header-Value")
+			w.WriteHeader(http.StatusNoContent)
+		}))
+	}
+
+	server := serverMock()
+	defer server.Close()
+
+	httpClient := httpcli.NewClient(
+		client.Codec("application/json", jsoncodec.NewCodec()),
+	)
+
+	var (
+		ctx = metadata.NewOutgoingContext(
+			context.Background(),
+			metadata.Pairs("Authorization", "Bearer token", "My-Header", "My-Header-Value"),
+		)
+		req = &request{UserId: "123", OrderId: 456}
+		rsp = &response{}
+
+		respMetadata = metadata.Metadata{}
+	)
+
+	opts := []client.CallOption{
+		client.WithAddress(server.URL),
+		client.WithResponseMetadata(&respMetadata),
+		httpcli.Method(http.MethodPost),
+		httpcli.Path("/user/products"),
+		httpcli.Body("*"),
+	}
+
+	expectedSetCookie := []string{"sessionid=abc123; Path=/; HttpOnly", "theme=dark; Path=/; Max-Age=3600", "lang=en-US; Path=/"}
+
+	err := httpClient.Call(
+		ctx,
+		httpClient.NewRequest("test.service", "Test.Call", req),
+		rsp,
+		opts...,
+	)
+	require.NoError(t, err)
+	require.Empty(t, rsp)
+
+	require.Equal(t, "application/json", respMetadata.GetJoined("Content-Type"))
+	require.Equal(t, "My-Header-Value", respMetadata.GetJoined("My-Header"))
+	for i, raw := range respMetadata.Get("Set-Cookie") {
+		cookie, err := http.ParseSetCookie(raw)
+		require.NoError(t, err)
+		require.Equal(t, expectedSetCookie[i], cookie.String())
+	}
+}
+
 func TestClient_Call_NoContent(t *testing.T) {
 	type (
 		request  = pb.Test_Client_Call_Request

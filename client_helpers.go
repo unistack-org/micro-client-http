@@ -225,10 +225,10 @@ func applyCookies(r *http.Request, rawCookies []string) {
 		return
 	}
 
-	raw := strings.Join(rawCookies, "; ")
-
 	tmp := http.Request{Header: http.Header{}}
-	tmp.Header.Set("Cookie", raw)
+	for _, raw := range rawCookies {
+		tmp.Header.Add("Cookie", raw)
+	}
 
 	for _, c := range tmp.Cookies() {
 		r.AddCookie(c)
