@@ -211,7 +211,7 @@ func (c *Client) parseRsp(ctx context.Context, hrsp *http.Response, rsp any, opt
 
 	if opts.ResponseMetadata != nil {
 		for k, v := range hrsp.Header {
-			opts.ResponseMetadata.Set(k, strings.Join(v, ","))
+			opts.ResponseMetadata.Append(k, v...)
 		}
 	}
 
