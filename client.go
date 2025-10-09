@@ -14,6 +14,8 @@ import (
 	"go.unistack.org/micro/v4/tracer"
 )
 
+var _ client.Client = (*Client)(nil)
+
 var DefaultContentType = "application/json"
 
 type Client struct {
