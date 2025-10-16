@@ -207,8 +207,6 @@ func (c *Client) parseRsp(ctx context.Context, hrsp *http.Response, rsp any, opt
 	default:
 	}
 
-	var buf []byte
-
 	if opts.ResponseMetadata != nil {
 		for k, v := range hrsp.Header {
 			opts.ResponseMetadata.Append(k, v...)
@@ -224,6 +222,8 @@ func (c *Client) parseRsp(ctx context.Context, hrsp *http.Response, rsp any, opt
 		ct = htype
 	}
 
+	var buf []byte
+
 	if hrsp.Body != nil {
 		var err error
 		buf, err = io.ReadAll(hrsp.Body)
@@ -232,13 +232,19 @@ func (c *Client) parseRsp(ctx context.Context, hrsp *http.Response, rsp any, opt
 		}
 	}
 
+	if log.V(logger.DebugLevel) {
+		log.Debug(
+			ctx,
+			fmt.Sprintf(
+				"go.micro.client http response: status=%s headers=%v body=%s",
+				hrsp.Status, hrsp.Header, buf,
+			),
+		)
+	}
+
 	cf, err := c.newCodec(ct)
 	if err != nil {
 		return errors.InternalServerError("go.micro.client", "unknown content-type %s: %v", ct, err)
-	}
-
-	if log.V(logger.DebugLevel) {
-		log.Debug(ctx, fmt.Sprintf("response with headers: %v and body: %s", hrsp.Header, buf))
 	}
 
 	if hrsp.StatusCode < http.StatusBadRequest {

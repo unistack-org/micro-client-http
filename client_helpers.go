@@ -121,7 +121,10 @@ func buildHTTPRequest(
 	if log.V(logger.DebugLevel) {
 		log.Debug(
 			ctx,
-			fmt.Sprintf("request %s to %s with headers %v body %s", method, u.String(), hreq.Header, body),
+			fmt.Sprintf(
+				"go.micro.client http request: method=%s url=%s headers=%v body=%s",
+				method, u.String(), hreq.Header, body,
+			),
 		)
 	}
 
