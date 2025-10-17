@@ -399,3 +399,49 @@ func TestValidateHeadersAndCookies(t *testing.T) {
 		})
 	}
 }
+
+func TestShouldLogBody(t *testing.T) {
+	tests := []struct {
+		name        string
+		contentType string
+		want        bool
+	}{
+		// --- text/*
+		{"plain text", "text/plain", true},
+		{"html", "text/html", true},
+		{"csv", "text/csv", true},
+		{"yaml text", "text/yaml", true},
+
+		// --- application/*
+		{"json", "application/json", true},
+		{"xml", "application/xml", true},
+		{"form-urlencoded", "application/x-www-form-urlencoded", true},
+		{"yaml", "application/yaml", true},
+
+		// --- with parameters
+		{"json with charset", "application/json; charset=utf-8", true},
+		{"binary with charset", "application/octet-stream; charset=utf-8", false},
+
+		// --- binary
+		{"multipart form", "multipart/form-data", false},
+		{"binary stream", "application/octet-stream", false},
+		{"pdf", "application/pdf", false},
+		{"protobuf", "application/protobuf", false},
+		{"image", "image/png", false},
+
+		// --- edge cases
+		{"upper case type", "APPLICATION/JSON", true},
+		{"mixed case type", "Text/HTML", true},
+		{"unknown text prefix", "TEXT/FOO", true},
+		{"weird semicolon only", ";", false},
+		{"spaces only", "   ", false},
+		{"empty content-type", "", false},
+		{"missing main type", "/plain", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, shouldLogBody(tt.contentType))
+		})
+	}
+}
