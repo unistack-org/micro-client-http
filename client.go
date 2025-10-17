@@ -12,6 +12,8 @@ import (
 	"go.unistack.org/micro/v4/options"
 	"go.unistack.org/micro/v4/semconv"
 	"go.unistack.org/micro/v4/tracer"
+
+	"go.unistack.org/micro-client-http/v4/status"
 )
 
 var DefaultContentType = "application/json"
@@ -91,24 +93,44 @@ func (c *Client) NewRequest(service, method string, req any, opts ...client.Requ
 func (c *Client) Call(ctx context.Context, req client.Request, rsp any, opts ...client.CallOption) error {
 	ts := time.Now()
 	c.opts.Meter.Counter(semconv.ClientRequestInflight, "endpoint", req.Endpoint()).Inc()
+
 	var sp tracer.Span
 	ctx, sp = c.opts.Tracer.Start(ctx, req.Endpoint()+" rpc-client",
 		tracer.WithSpanKind(tracer.SpanKindClient),
 		tracer.WithSpanLabels("endpoint", req.Endpoint()),
 	)
+	defer sp.Finish()
+
 	err := c.funcCall(ctx, req, rsp, opts...)
+
 	c.opts.Meter.Counter(semconv.ClientRequestInflight, "endpoint", req.Endpoint()).Dec()
 	te := time.Since(ts)
 	c.opts.Meter.Summary(semconv.ClientRequestLatencyMicroseconds, "endpoint", req.Endpoint()).Update(te.Seconds())
 	c.opts.Meter.Histogram(semconv.ClientRequestDurationSeconds, "endpoint", req.Endpoint()).Update(te.Seconds())
 
-	if me := errors.FromError(err); me == nil {
-		sp.Finish()
-		c.opts.Meter.Counter(semconv.ClientRequestTotal, "endpoint", req.Endpoint(), "status", "success", "code", strconv.Itoa(int(200))).Inc()
-	} else {
+	var (
+		statusCode  int
+		statusLabel string
+	)
+
+	if err == nil {
+		statusCode = http.StatusOK
+		statusLabel = "success"
+	} else if st, ok := status.FromError(err); ok {
+		statusCode = st.Code()
+		statusLabel = "failure"
 		sp.SetStatus(tracer.SpanStatusError, err.Error())
-		c.opts.Meter.Counter(semconv.ClientRequestTotal, "endpoint", req.Endpoint(), "status", "failure", "code", strconv.Itoa(int(me.Code))).Inc()
+	} else if me := errors.FromError(err); me != nil {
+		statusCode = int(me.Code)
+		statusLabel = "failure"
+		sp.SetStatus(tracer.SpanStatusError, err.Error())
+	} else {
+		statusCode = http.StatusInternalServerError
+		statusLabel = "failure"
+		sp.SetStatus(tracer.SpanStatusError, err.Error())
 	}
+
+	c.opts.Meter.Counter(semconv.ClientRequestTotal, "endpoint", req.Endpoint(), "status", statusLabel, "code", strconv.Itoa(statusCode)).Inc()
 
 	return err
 }
