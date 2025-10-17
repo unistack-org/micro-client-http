@@ -16,6 +16,8 @@ import (
 	"go.unistack.org/micro-client-http/v4/status"
 )
 
+var _ client.Client = (*Client)(nil)
+
 var DefaultContentType = "application/json"
 
 type Client struct {
