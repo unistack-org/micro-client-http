@@ -233,13 +233,23 @@ func (c *Client) parseRsp(ctx context.Context, hrsp *http.Response, rsp any, opt
 	}
 
 	if log.V(logger.DebugLevel) {
-		log.Debug(
-			ctx,
-			fmt.Sprintf(
-				"go.micro.client http response: status=%s headers=%v body=%s",
-				hrsp.Status, hrsp.Header, buf,
-			),
-		)
+		if shouldLogBody(ct) {
+			log.Debug(
+				ctx,
+				fmt.Sprintf(
+					"micro.client http response: status=%s headers=%v body=%s",
+					hrsp.Status, hrsp.Header, buf,
+				),
+			)
+		} else {
+			log.Debug(
+				ctx,
+				fmt.Sprintf(
+					"micro.client http response: status=%s headers=%v",
+					hrsp.Status, hrsp.Header,
+				),
+			)
+		}
 	}
 
 	cf, err := c.newCodec(ct)

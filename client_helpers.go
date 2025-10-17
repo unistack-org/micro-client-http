@@ -119,13 +119,23 @@ func buildHTTPRequest(
 	}
 
 	if log.V(logger.DebugLevel) {
-		log.Debug(
-			ctx,
-			fmt.Sprintf(
-				"go.micro.client http request: method=%s url=%s headers=%v body=%s",
-				method, u.String(), hreq.Header, body,
-			),
-		)
+		if shouldLogBody(ct) {
+			log.Debug(
+				ctx,
+				fmt.Sprintf(
+					"micro.client http request: method=%s url=%s headers=%v body=%s",
+					method, u.String(), hreq.Header, body,
+				),
+			)
+		} else {
+			log.Debug(
+				ctx,
+				fmt.Sprintf(
+					"micro.client http request: method=%s url=%s headers=%v",
+					method, u.String(), hreq.Header,
+				),
+			)
+		}
 	}
 
 	return hreq, nil
@@ -261,4 +271,19 @@ func validateHeadersAndCookies(r *http.Request, parameters map[string]map[string
 	}
 
 	return nil
+}
+
+func shouldLogBody(contentType string) bool {
+	ct := strings.ToLower(strings.Split(contentType, ";")[0])
+	switch {
+	case strings.HasPrefix(ct, "text/"): // => text/html, text/plain, text/csv etc.
+		return true
+	case ct == "application/json",
+		ct == "application/xml",
+		ct == "application/x-www-form-urlencoded",
+		ct == "application/yaml":
+		return true
+	default:
+		return false
+	}
 }
