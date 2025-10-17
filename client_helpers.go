@@ -119,13 +119,23 @@ func buildHTTPRequest(
 	}
 
 	if log.V(logger.DebugLevel) {
-		log.Debug(
-			ctx,
-			fmt.Sprintf(
-				"go.micro.client http request: method=%s url=%s headers=%v body=%s",
-				method, u.String(), hreq.Header, body,
-			),
-		)
+		if shouldLogBody(ct) {
+			log.Debug(
+				ctx,
+				fmt.Sprintf(
+					"micro.client http request: method=%s url=%s headers=%v body=%s",
+					method, u.String(), hreq.Header, body,
+				),
+			)
+		} else {
+			log.Debug(
+				ctx,
+				fmt.Sprintf(
+					"micro.client http request: method=%s url=%s headers=%v",
+					method, u.String(), hreq.Header,
+				),
+			)
+		}
 	}
 
 	return hreq, nil
