@@ -80,6 +80,10 @@ func (c *Client) Options() client.Options {
 	return c.opts
 }
 
+func (c *Client) NewMessage(topic string, msg interface{}, opts ...client.MessageOption) client.Message {
+	return newHTTPEvent(topic, msg, c.opts.ContentType, opts...)
+}
+
 func (c *Client) NewRequest(service, method string, req any, opts ...client.RequestOption) client.Request {
 	reqOpts := client.NewRequestOptions(opts...)
 	if reqOpts.ContentType == "" {
@@ -143,18 +147,14 @@ func (c *Client) Stream(ctx context.Context, req client.Request, opts ...client.
 	return c.funcStream(ctx, req, opts...)
 }
 
-func (c *Client) String() string {
-	return "http"
+func (c *Client) Publish(ctx context.Context, p client.Message, opts ...client.PublishOption) error {
+	return c.funcPublish(ctx, p, opts...)
 }
 
 func (c *Client) BatchPublish(ctx context.Context, ps []client.Message, opts ...client.PublishOption) error {
 	return c.funcBatchPublish(ctx, ps, opts...)
 }
 
-func (c *Client) Publish(ctx context.Context, p client.Message, opts ...client.PublishOption) error {
-	return c.funcPublish(ctx, p, opts...)
-}
-
-func (c *Client) NewMessage(topic string, msg interface{}, opts ...client.MessageOption) client.Message {
-	return newHTTPEvent(topic, msg, c.opts.ContentType, opts...)
+func (c *Client) String() string {
+	return "http"
 }
