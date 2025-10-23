@@ -21,13 +21,14 @@ var _ client.Client = (*Client)(nil)
 var DefaultContentType = "application/json"
 
 type Client struct {
-	funcPublish      client.FuncPublish
-	funcBatchPublish client.FuncBatchPublish
 	funcCall         client.FuncCall
 	funcStream       client.FuncStream
-	httpClient       *http.Client
-	opts             client.Options
-	mu               sync.RWMutex
+	funcPublish      client.FuncPublish
+	funcBatchPublish client.FuncBatchPublish
+
+	httpClient *http.Client
+	opts       client.Options
+	mu         sync.RWMutex
 }
 
 func NewClient(opts ...client.Option) *Client {
