@@ -25,10 +25,9 @@ type Client struct {
 	funcStream       client.FuncStream
 	funcPublish      client.FuncPublish
 	funcBatchPublish client.FuncBatchPublish
-
-	httpClient *http.Client
-	opts       client.Options
-	mu         sync.RWMutex
+	httpClient       *http.Client
+	opts             client.Options
+	mu               sync.RWMutex
 }
 
 func NewClient(opts ...client.Option) *Client {
@@ -52,6 +51,8 @@ func NewClient(opts ...client.Option) *Client {
 
 	c.funcCall = c.fnCall
 	c.funcStream = c.fnStream
+	c.funcPublish = c.fnPublish
+	c.funcBatchPublish = c.fnBatchPublish
 
 	return c
 }
