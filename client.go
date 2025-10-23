@@ -87,7 +87,17 @@ func (c *Client) Options() client.Options {
 }
 
 func (c *Client) NewMessage(topic string, msg interface{}, opts ...client.MessageOption) client.Message {
-	return newHTTPEvent(topic, msg, c.opts.ContentType, opts...)
+	msgOpts := client.NewMessageOptions(opts...)
+	if msgOpts.ContentType == "" {
+		msgOpts.ContentType = c.opts.ContentType
+	}
+
+	return &httpMessage{
+		topic:   topic,
+		payload: msg,
+		opts:    msgOpts,
+	}
+
 }
 
 func (c *Client) NewRequest(service, method string, req any, opts ...client.RequestOption) client.Request {
