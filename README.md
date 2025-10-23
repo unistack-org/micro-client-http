@@ -13,6 +13,7 @@ implements HTTP rules defined in the [google/api/http.proto](https://github.com/
 
 * Streaming is not yet implemented.
 * Only protobuf-generated messages are supported.
+* In `micro/v3`, metadata is implemented as `map[string]string`, which works for most headers but not for multiple `Set-Cookie` headers. The HTTP specification forbids the use of commas in `Set-Cookie` headers; therefore, their values cannot be parsed reliably. In `micro/v4`, metadata uses `map[string][]string`, resolving this issue.
 
 ## Usage
 
