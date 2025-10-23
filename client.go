@@ -3,20 +3,17 @@ package http
 import (
 	"context"
 	"net/http"
-	"os"
 	"strconv"
 	"sync"
 	"time"
 
-	"go.unistack.org/micro-client-http/v3/status"
-	"go.unistack.org/micro/v3/broker"
 	"go.unistack.org/micro/v3/client"
-	"go.unistack.org/micro/v3/codec"
 	"go.unistack.org/micro/v3/errors"
-	"go.unistack.org/micro/v3/metadata"
 	"go.unistack.org/micro/v3/options"
 	"go.unistack.org/micro/v3/semconv"
 	"go.unistack.org/micro/v3/tracer"
+
+	"go.unistack.org/micro-client-http/v3/status"
 )
 
 var _ client.Client = (*Client)(nil)
@@ -154,78 +151,8 @@ func (c *Client) BatchPublish(ctx context.Context, ps []client.Message, opts ...
 	return c.funcBatchPublish(ctx, ps, opts...)
 }
 
-func (c *Client) fnBatchPublish(ctx context.Context, ps []client.Message, opts ...client.PublishOption) error {
-	return c.publish(ctx, ps, opts...)
-}
-
 func (c *Client) Publish(ctx context.Context, p client.Message, opts ...client.PublishOption) error {
 	return c.funcPublish(ctx, p, opts...)
-}
-
-func (c *Client) fnPublish(ctx context.Context, p client.Message, opts ...client.PublishOption) error {
-	return c.publish(ctx, []client.Message{p}, opts...)
-}
-
-func (c *Client) publish(ctx context.Context, ps []client.Message, opts ...client.PublishOption) error {
-	var body []byte
-
-	options := client.NewPublishOptions(opts...)
-
-	// get proxy
-	exchange := ""
-	if v, ok := os.LookupEnv("MICRO_PROXY"); ok {
-		exchange = v
-	}
-	// get the exchange
-	if len(options.Exchange) > 0 {
-		exchange = options.Exchange
-	}
-
-	msgs := make([]*broker.Message, 0, len(ps))
-
-	omd, ok := metadata.FromOutgoingContext(ctx)
-	if !ok {
-		omd = metadata.New(2)
-	}
-
-	for _, p := range ps {
-		md := metadata.Copy(omd)
-		topic := p.Topic()
-		if len(exchange) > 0 {
-			topic = exchange
-		}
-		md.Set(metadata.HeaderTopic, topic)
-		iter := p.Metadata().Iterator()
-		var k, v string
-		for iter.Next(&k, &v) {
-			md.Set(k, v)
-		}
-
-		md[metadata.HeaderContentType] = p.ContentType()
-
-		// passed in raw data
-		if d, ok := p.Payload().(*codec.Frame); ok {
-			body = d.Data
-		} else {
-			// use codec for payload
-			cf, err := c.newCodec(p.ContentType())
-			if err != nil {
-				return errors.InternalServerError("go.micro.client", "%+v", err)
-			}
-			// set the body
-			b, err := cf.Marshal(p.Payload())
-			if err != nil {
-				return errors.InternalServerError("go.micro.client", "%+v", err)
-			}
-			body = b
-		}
-		msgs = append(msgs, &broker.Message{Header: md, Body: body})
-	}
-
-	return c.opts.Broker.BatchPublish(ctx, msgs,
-		broker.PublishContext(options.Context),
-		broker.PublishBodyOnly(options.BodyOnly),
-	)
 }
 
 func (c *Client) NewMessage(topic string, msg interface{}, opts ...client.MessageOption) client.Message {
