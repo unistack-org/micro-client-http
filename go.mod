@@ -7,7 +7,7 @@ toolchain go1.24.3
 require (
 	github.com/stretchr/testify v1.11.1
 	go.unistack.org/micro-codec-json/v3 v3.10.3
-	go.unistack.org/micro/v3 v3.11.45
+	go.unistack.org/micro/v3 v3.11.46
 	google.golang.org/protobuf v1.36.10
 )
 
