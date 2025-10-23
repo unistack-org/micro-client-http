@@ -67,7 +67,9 @@ func (c *Client) publish(ctx context.Context, ps []client.Message, opts ...clien
 		msgs = append(msgs, &broker.Message{Header: md, Body: body})
 	}
 
-	return c.opts.Broker.BatchPublish(ctx, msgs,
+	return c.opts.Broker.BatchPublish(
+		ctx,
+		msgs,
 		broker.PublishContext(options.Context),
 		broker.PublishBodyOnly(options.BodyOnly),
 	)
