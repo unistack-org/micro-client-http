@@ -44,7 +44,7 @@ func (c *Client) fnCall(ctx context.Context, req client.Request, rsp any, opts .
 	// should we noop right here?
 	select {
 	case <-ctx.Done():
-		return errors.New("go.micro.client", fmt.Sprintf("%v", ctx.Err()), 408)
+		return errors.New("micro.client", fmt.Sprintf("%v", ctx.Err()), 408)
 	default:
 	}
 
@@ -72,7 +72,7 @@ func (c *Client) fnCall(ctx context.Context, req client.Request, rsp any, opts .
 		// call backoff first. Someone may want an initial start delay
 		t, err := callOpts.Backoff(ctx, req, i)
 		if err != nil {
-			return errors.InternalServerError("go.micro.client", "%+v", err)
+			return errors.InternalServerError("micro.client", "%+v", err)
 		}
 
 		// only sleep if greater than 0
@@ -86,13 +86,13 @@ func (c *Client) fnCall(ctx context.Context, req client.Request, rsp any, opts .
 			// TODO apply any filtering here
 			routes, err = c.opts.Lookup(ctx, req, callOpts)
 			if err != nil {
-				return errors.InternalServerError("go.micro.client", "%+v", err)
+				return errors.InternalServerError("micro.client", "%+v", err)
 			}
 
 			// balance the list of nodes
 			next, err = callOpts.Selector.Select(routes)
 			if err != nil {
-				return errors.InternalServerError("go.micro.client", "%+v", err)
+				return errors.InternalServerError("micro.client", "%+v", err)
 			}
 		}
 
@@ -103,7 +103,7 @@ func (c *Client) fnCall(ctx context.Context, req client.Request, rsp any, opts .
 
 		// record the result of the call to inform future routing decisions
 		if verr := c.opts.Selector.Record(node, err); verr != nil {
-			return errors.InternalServerError("go.micro.client", "%+v", verr)
+			return errors.InternalServerError("micro.client", "%+v", verr)
 		}
 
 		// try and transform the error to micro error
@@ -124,7 +124,7 @@ func (c *Client) fnCall(ctx context.Context, req client.Request, rsp any, opts .
 
 		select {
 		case <-ctx.Done():
-			return errors.New("go.micro.client", fmt.Sprintf("%v", ctx.Err()), 408)
+			return errors.New("micro.client", fmt.Sprintf("%v", ctx.Err()), 408)
 		case err := <-ch:
 			// if the call succeeded lets bail early
 			if err == nil {
@@ -155,12 +155,12 @@ func (c *Client) call(ctx context.Context, addr string, req client.Request, rsp 
 
 	cf, err := c.newCodec(ct)
 	if err != nil {
-		return errors.BadRequest("go.micro.client", "%+v", err)
+		return errors.BadRequest("micro.client", "%+v", err)
 	}
 
 	hreq, err := buildHTTPRequest(ctx, addr, req.Endpoint(), ct, cf, req.Body(), opts, c.opts.Logger)
 	if err != nil {
-		return errors.BadRequest("go.micro.client", "%+v", err)
+		return errors.BadRequest("micro.client", "%+v", err)
 	}
 
 	hrsp, err := c.httpClient.Do(hreq)
@@ -168,14 +168,14 @@ func (c *Client) call(ctx context.Context, addr string, req client.Request, rsp 
 		switch err := err.(type) {
 		case *url.Error:
 			if err, ok := err.Err.(net.Error); ok && err.Timeout() {
-				return errors.Timeout("go.micro.client", "%+v", err)
+				return errors.Timeout("micro.client", "%+v", err)
 			}
 		case net.Error:
 			if err.Timeout() {
-				return errors.Timeout("go.micro.client", "%+v", err)
+				return errors.Timeout("micro.client", "%+v", err)
 			}
 		}
-		return errors.InternalServerError("go.micro.client", "%+v", err)
+		return errors.InternalServerError("micro.client", "%+v", err)
 	}
 
 	defer hrsp.Body.Close()
@@ -228,7 +228,7 @@ func (c *Client) parseRsp(ctx context.Context, hrsp *http.Response, rsp any, opt
 		var err error
 		buf, err = io.ReadAll(hrsp.Body)
 		if err != nil {
-			return errors.InternalServerError("go.micro.client", "read body: %v", err)
+			return errors.InternalServerError("micro.client", "read body: %v", err)
 		}
 	}
 
@@ -254,12 +254,12 @@ func (c *Client) parseRsp(ctx context.Context, hrsp *http.Response, rsp any, opt
 
 	cf, err := c.newCodec(ct)
 	if err != nil {
-		return errors.InternalServerError("go.micro.client", "unknown content-type %s: %v", ct, err)
+		return errors.InternalServerError("micro.client", "unknown content-type %s: %v", ct, err)
 	}
 
 	if hrsp.StatusCode < http.StatusBadRequest {
 		if err = cf.Unmarshal(buf, rsp); err != nil {
-			return errors.InternalServerError("go.micro.client", "unmarshal response: %v", err)
+			return errors.InternalServerError("micro.client", "unmarshal response: %v", err)
 		}
 		return nil
 	}
@@ -281,7 +281,7 @@ func (c *Client) parseRsp(ctx context.Context, hrsp *http.Response, rsp any, opt
 	}
 
 	if err = cf.Unmarshal(buf, mappedErr); err != nil {
-		return errors.InternalServerError("go.micro.client", "unmarshal response: %v", err)
+		return errors.InternalServerError("micro.client", "unmarshal response: %v", err)
 	}
 
 	return s.WithDetails(mappedErr).Err()
