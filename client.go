@@ -72,6 +72,10 @@ func (c *Client) Init(opts ...client.Option) error {
 			c.funcCall = h(c.funcCall)
 		case client.HookStream:
 			c.funcStream = h(c.funcStream)
+		case client.HookPublish:
+			c.funcPublish = h(c.funcPublish)
+		case client.HookBatchPublish:
+			c.funcBatchPublish = h(c.funcBatchPublish)
 		}
 	})
 
