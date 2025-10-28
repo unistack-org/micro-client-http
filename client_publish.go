@@ -55,12 +55,12 @@ func (c *Client) publish(ctx context.Context, ps []client.Message, opts ...clien
 			// use codec for payload
 			cf, err := c.newCodec(p.ContentType())
 			if err != nil {
-				return errors.InternalServerError("micro.client", "%+v", err)
+				return errors.InternalServerError("go.micro.client", "%+v", err)
 			}
 			// set the body
 			b, err := cf.Marshal(p.Payload())
 			if err != nil {
-				return errors.InternalServerError("micro.client", "%+v", err)
+				return errors.InternalServerError("go.micro.client", "%+v", err)
 			}
 			body = b
 		}

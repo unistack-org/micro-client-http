@@ -123,7 +123,7 @@ func buildHTTPRequest(
 			log.Debug(
 				ctx,
 				fmt.Sprintf(
-					"micro.client http request: method=%s url=%s headers=%v body=%s",
+					"go.micro.client http request: method=%s url=%s headers=%v body=%s",
 					method, u.String(), hreq.Header, body,
 				),
 			)
@@ -131,7 +131,7 @@ func buildHTTPRequest(
 			log.Debug(
 				ctx,
 				fmt.Sprintf(
-					"micro.client http request: method=%s url=%s headers=%v",
+					"go.micro.client http request: method=%s url=%s headers=%v",
 					method, u.String(), hreq.Header,
 				),
 			)

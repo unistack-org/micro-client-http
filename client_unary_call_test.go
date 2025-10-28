@@ -1312,7 +1312,7 @@ func TestClient_Call_RequestTimeoutError(t *testing.T) {
 	)
 	require.Error(t, err)
 	require.Equal(t, err, &microerr.Error{
-		ID:     "micro.client",
+		ID:     "go.micro.client",
 		Detail: "context deadline exceeded",
 		Status: "Request Timeout",
 		Code:   http.StatusRequestTimeout,
@@ -1360,7 +1360,7 @@ func TestClient_Call_ContextDeadlineError(t *testing.T) {
 	)
 	require.Error(t, err)
 	require.Equal(t, err, &microerr.Error{
-		ID:     "micro.client",
+		ID:     "go.micro.client",
 		Detail: "context deadline exceeded",
 		Status: "Request Timeout",
 		Code:   http.StatusRequestTimeout,
@@ -1408,7 +1408,7 @@ func TestClient_Call_ContextCanceled(t *testing.T) {
 	)
 	require.Error(t, err)
 	require.Equal(t, err, &microerr.Error{
-		ID:     "micro.client",
+		ID:     "go.micro.client",
 		Detail: "context canceled",
 		Status: "Request Timeout",
 		Code:   http.StatusRequestTimeout,
