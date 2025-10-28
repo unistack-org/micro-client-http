@@ -237,7 +237,7 @@ func (c *Client) parseRsp(ctx context.Context, hrsp *http.Response, rsp any, opt
 			log.Debug(
 				ctx,
 				fmt.Sprintf(
-					"go.micro.client http response: status=%s headers=%v body=%s",
+					"micro.client http response: status=%s headers=%v body=%s",
 					hrsp.Status, hrsp.Header, buf,
 				),
 			)
@@ -245,7 +245,7 @@ func (c *Client) parseRsp(ctx context.Context, hrsp *http.Response, rsp any, opt
 			log.Debug(
 				ctx,
 				fmt.Sprintf(
-					"go.micro.client http response: status=%s headers=%v",
+					"micro.client http response: status=%s headers=%v",
 					hrsp.Status, hrsp.Header,
 				),
 			)
