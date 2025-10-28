@@ -29,8 +29,8 @@ go.unistack.org/micro-codec-json/v3 v3.10.3 h1:FwSBfJswov30Dyqxp1XfQW1EG4h77uTEe
 go.unistack.org/micro-codec-json/v3 v3.10.3/go.mod h1:26OK5MizMNKhspGC6PRVwpDIp5w1GmRb0nE5eRWWDxA=
 go.unistack.org/micro-proto/v3 v3.4.1 h1:UTjLSRz2YZuaHk9iSlVqqsA50JQNAEK2ZFboGqtEa9Q=
 go.unistack.org/micro-proto/v3 v3.4.1/go.mod h1:okx/cnOhzuCX0ggl/vToatbCupi0O44diiiLLsZ93Zo=
-go.unistack.org/micro/v3 v3.11.46 h1:nfQxVVGWjTjjWq9E57kQ8Z8PK3J4A6WjE1WrdJFJqAA=
-go.unistack.org/micro/v3 v3.11.46/go.mod h1:fDQ8Mu9wubaFP0L8hNQlpzHiEnWN0wbOlawN9HYo0N4=
+go.unistack.org/micro/v3 v3.11.48 h1:lHJYSHU2z1TTcuswItGwG7cZXN6n04EFqY7lk/0gA7w=
+go.unistack.org/micro/v3 v3.11.48/go.mod h1:fDQ8Mu9wubaFP0L8hNQlpzHiEnWN0wbOlawN9HYo0N4=
 golang.org/x/net v0.41.0 h1:vBTly1HeNPEn3wtREYfy4GZ/NECgw2Cnl+nK6Nz3uvw=
 golang.org/x/net v0.41.0/go.mod h1:B/K4NNqkfmg07DQYrbwvSluqCJOOXwUjeb/5lOisjbA=
 golang.org/x/sys v0.36.0 h1:KVRy2GtZBrk1cBYA7MKu5bEZFxQk4NIDV6RLVcC8o0k=
