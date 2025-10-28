@@ -21,10 +21,10 @@ var _ client.Client = (*Client)(nil)
 var DefaultContentType = "application/json"
 
 type Client struct {
-	funcCall         client.FuncCall
-	funcStream       client.FuncStream
 	funcPublish      client.FuncPublish
 	funcBatchPublish client.FuncBatchPublish
+	funcCall         client.FuncCall
+	funcStream       client.FuncStream
 	httpClient       *http.Client
 	opts             client.Options
 	mu               sync.RWMutex
@@ -49,10 +49,10 @@ func NewClient(opts ...client.Option) *Client {
 		c.httpClient = defaultHTTPClient(dialer, clientOpts.TLSConfig)
 	}
 
-	c.funcCall = c.fnCall
-	c.funcStream = c.fnStream
 	c.funcPublish = c.fnPublish
 	c.funcBatchPublish = c.fnBatchPublish
+	c.funcCall = c.fnCall
+	c.funcStream = c.fnStream
 
 	return c
 }
