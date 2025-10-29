@@ -5,40 +5,24 @@ import (
 	"go.unistack.org/micro/v3/metadata"
 )
 
-type httpEvent struct {
-	payload     interface{}
-	topic       string
-	contentType string
-	opts        client.MessageOptions
+type httpMessage struct {
+	topic   string
+	payload interface{}
+	opts    client.MessageOptions
 }
 
-func newHTTPEvent(topic string, payload interface{}, contentType string, opts ...client.MessageOption) client.Message {
-	options := client.NewMessageOptions(opts...)
-
-	if len(options.ContentType) > 0 {
-		contentType = options.ContentType
-	}
-
-	return &httpEvent{
-		payload:     payload,
-		topic:       topic,
-		contentType: contentType,
-		opts:        options,
-	}
+func (m *httpMessage) Topic() string {
+	return m.topic
 }
 
-func (c *httpEvent) ContentType() string {
-	return c.contentType
+func (m *httpMessage) Payload() interface{} {
+	return m.payload
 }
 
-func (c *httpEvent) Topic() string {
-	return c.topic
+func (m *httpMessage) ContentType() string {
+	return m.opts.ContentType
 }
 
-func (c *httpEvent) Payload() interface{} {
-	return c.payload
-}
-
-func (c *httpEvent) Metadata() metadata.Metadata {
-	return c.opts.Metadata
+func (m *httpMessage) Metadata() metadata.Metadata {
+	return m.opts.Metadata
 }
