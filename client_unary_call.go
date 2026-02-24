@@ -48,9 +48,6 @@ func (c *Client) fnCall(ctx context.Context, req client.Request, rsp any, opts .
 	default:
 	}
 
-	// make copy of call method
-	hcall := c.call
-
 	// use the router passed as a call option, or fallback to the rpc clients router
 	if callOpts.Router == nil {
 		callOpts.Router = c.opts.Router
@@ -80,7 +77,10 @@ func (c *Client) fnCall(ctx context.Context, req client.Request, rsp any, opts .
 			time.Sleep(t)
 		}
 
-		if next == nil {
+		var node string
+		if addr, ok := c.opts.Context.Value(addressKey{}).(string); ok && addr != "" {
+			node = addr
+		} else if next == nil {
 			var routes []string
 			// lookup the route to send the reques to
 			// TODO apply any filtering here
@@ -96,10 +96,12 @@ func (c *Client) fnCall(ctx context.Context, req client.Request, rsp any, opts .
 			}
 		}
 
-		node := next()
+		if node == "" {
+			node = next()
+		}
 
 		// make the call
-		err = hcall(ctx, node, req, rsp, callOpts)
+		err = c.call(ctx, node, req, rsp, callOpts)
 
 		// record the result of the call to inform future routing decisions
 		if verr := c.opts.Selector.Record(node, err); verr != nil {

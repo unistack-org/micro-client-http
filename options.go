@@ -146,3 +146,10 @@ func headerFromOpts(opts client.CallOptions) ([]string, bool) {
 	h, ok := opts.Context.Value(headerKey{}).([]string)
 	return h, ok
 }
+
+type addressKey struct{}
+
+// Address specifies http endpoint address to connect, that will be used as prefix for path
+func Address(s string) client.Option {
+	return client.SetOption(addressKey{}, s)
+}
