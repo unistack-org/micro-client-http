@@ -108,7 +108,9 @@ func TestClient_Call_Get(t *testing.T) {
 
 				buf, err := io.ReadAll(r.Body)
 				require.NoError(t, err)
-				defer r.Body.Close()
+				defer func() {
+					require.NoError(t, r.Body.Close())
+				}()
 				require.Equal(t, tt.wantReqBody, buf)
 
 				w.Header().Set("Content-Type", "application/json")
@@ -258,7 +260,10 @@ func TestClient_Call_Head(t *testing.T) {
 
 				buf, err := io.ReadAll(r.Body)
 				require.NoError(t, err)
-				defer r.Body.Close()
+				defer func() {
+					_ = r.Body.Close()
+				}()
+
 				require.Equal(t, tt.wantReqBody, buf)
 
 				w.Header().Set("Content-Type", "application/json")
@@ -442,7 +447,9 @@ func TestClient_Call_Post(t *testing.T) {
 
 				buf, err := io.ReadAll(r.Body)
 				require.NoError(t, err)
-				defer r.Body.Close()
+				defer func() {
+					_ = r.Body.Close()
+				}()
 				require.Equal(t, tt.wantReqBody, buf)
 
 				w.Header().Set("Content-Type", "application/json")
@@ -592,7 +599,9 @@ func TestClient_Call_Delete(t *testing.T) {
 
 				buf, err := io.ReadAll(r.Body)
 				require.NoError(t, err)
-				defer r.Body.Close()
+				defer func() {
+					require.NoError(t, r.Body.Close())
+				}()
 				require.Equal(t, tt.wantReqBody, buf)
 
 				w.Header().Set("Content-Type", "application/json")
@@ -681,7 +690,9 @@ func TestClient_Call_APIError_WithErrorsMap(t *testing.T) {
 
 					buf, err := io.ReadAll(r.Body)
 					require.NoError(t, err)
-					defer r.Body.Close()
+					defer func() {
+						require.NoError(t, r.Body.Close())
+					}()
 
 					c := jsoncodec.NewCodec()
 
@@ -726,7 +737,9 @@ func TestClient_Call_APIError_WithErrorsMap(t *testing.T) {
 
 					buf, err := io.ReadAll(r.Body)
 					require.NoError(t, err)
-					defer r.Body.Close()
+					defer func() {
+						require.NoError(t, r.Body.Close())
+					}()
 
 					c := jsoncodec.NewCodec()
 
@@ -832,7 +845,9 @@ func TestClient_Call_APIError_WithoutErrorsMap(t *testing.T) {
 
 			buf, err := io.ReadAll(r.Body)
 			require.NoError(t, err)
-			defer r.Body.Close()
+			defer func() {
+				require.NoError(t, r.Body.Close())
+			}()
 
 			c := jsoncodec.NewCodec()
 
@@ -929,7 +944,9 @@ func TestClient_Call_HeadersAndCookies(t *testing.T) {
 
 					buf, err := io.ReadAll(r.Body)
 					require.NoError(t, err)
-					defer r.Body.Close()
+					defer func() {
+						require.NoError(t, r.Body.Close())
+					}()
 
 					c := jsoncodec.NewCodec()
 
@@ -974,7 +991,9 @@ func TestClient_Call_HeadersAndCookies(t *testing.T) {
 
 					buf, err := io.ReadAll(r.Body)
 					require.NoError(t, err)
-					defer r.Body.Close()
+					defer func() {
+						require.NoError(t, r.Body.Close())
+					}()
 
 					c := jsoncodec.NewCodec()
 
@@ -1018,7 +1037,9 @@ func TestClient_Call_HeadersAndCookies(t *testing.T) {
 
 					buf, err := io.ReadAll(r.Body)
 					require.NoError(t, err)
-					defer r.Body.Close()
+					defer func() {
+						require.NoError(t, r.Body.Close())
+					}()
 
 					c := jsoncodec.NewCodec()
 
@@ -1062,7 +1083,9 @@ func TestClient_Call_HeadersAndCookies(t *testing.T) {
 
 					buf, err := io.ReadAll(r.Body)
 					require.NoError(t, err)
-					defer r.Body.Close()
+					defer func() {
+						require.NoError(t, r.Body.Close())
+					}()
 
 					c := jsoncodec.NewCodec()
 
@@ -1108,7 +1131,9 @@ func TestClient_Call_HeadersAndCookies(t *testing.T) {
 
 					buf, err := io.ReadAll(r.Body)
 					require.NoError(t, err)
-					defer r.Body.Close()
+					defer func() {
+						require.NoError(t, r.Body.Close())
+					}()
 
 					c := jsoncodec.NewCodec()
 
@@ -1215,7 +1240,9 @@ func TestClient_Call_NoContent(t *testing.T) {
 
 			buf, err := io.ReadAll(r.Body)
 			require.NoError(t, err)
-			defer r.Body.Close()
+			defer func() {
+				require.NoError(t, r.Body.Close())
+			}()
 
 			c := jsoncodec.NewCodec()
 
@@ -1413,4 +1440,159 @@ func TestClient_Call_ContextCanceled(t *testing.T) {
 		Status: "Request Timeout",
 		Code:   http.StatusRequestTimeout,
 	})
+}
+
+func TestClient_Call_PlainStruct(t *testing.T) {
+	type (
+		request struct {
+			UserID  string `json:"user_id"`
+			OrderID int    `json:"order_id"`
+		}
+		response struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		}
+	)
+
+	tests := []struct {
+		name        string
+		method      string
+		path        string
+		req         any
+		wantPath    string
+		wantReqBody []byte
+		wantRsp     *response
+		wantErr     bool
+	}{
+		{
+			name:        "POST with body",
+			method:      http.MethodPost,
+			path:        "/orders",
+			req:         &request{UserID: "user-123", OrderID: 456},
+			wantPath:    "/orders",
+			wantReqBody: []byte(`{"user_id":"user-123","order_id":456}`),
+			wantRsp:     &response{ID: "order-id", Name: "order-name"},
+			wantErr:     false,
+		},
+		{
+			name:        "PUT with body",
+			method:      http.MethodPut,
+			path:        "/orders/123",
+			req:         &request{UserID: "user-123", OrderID: 456},
+			wantPath:    "/orders/123",
+			wantReqBody: []byte(`{"user_id":"user-123","order_id":456}`),
+			wantRsp:     &response{ID: "order-id", Name: "order-name"},
+			wantErr:     false,
+		},
+		{
+			name:        "PATCH with body",
+			method:      http.MethodPatch,
+			path:        "/orders/123",
+			req:         &request{UserID: "user-123"},
+			wantPath:    "/orders/123",
+			wantReqBody: []byte(`{"user_id":"user-123","order_id":0}`),
+			wantRsp:     &response{ID: "order-id", Name: "order-name"},
+			wantErr:     false,
+		},
+		{
+			name:        "POST with nil request",
+			method:      http.MethodPost,
+			path:        "/orders",
+			req:         nil,
+			wantPath:    "/orders",
+			wantReqBody: []byte{},
+			wantRsp:     &response{ID: "order-id", Name: "order-name"},
+			wantErr:     false,
+		},
+		{
+			name:        "GET with nil request",
+			method:      http.MethodGet,
+			path:        "/orders",
+			req:         nil,
+			wantPath:    "/orders",
+			wantReqBody: []byte{},
+			wantRsp:     &response{ID: "order-id", Name: "order-name"},
+			wantErr:     false,
+		},
+		{
+			name:        "POST path with placeholder (resolved from struct field)",
+			method:      http.MethodPost,
+			path:        "/orders/{order_id}",
+			req:         &request{UserID: "user-123", OrderID: 456},
+			wantPath:    "/orders/456",
+			wantReqBody: []byte(`{"user_id":"user-123","order_id":456}`),
+			wantRsp:     &response{ID: "order-id", Name: "order-name"},
+			wantErr:     false,
+		},
+		{
+			name:    "POST path with zero-value placeholder (error)",
+			method:  http.MethodPost,
+			path:    "/orders/{order_id}",
+			req:     &request{UserID: "user-123", OrderID: 0},
+			wantRsp: nil,
+			wantErr: true,
+		},
+		{
+			name:    "POST path with unknown placeholder (error)",
+			method:  http.MethodPost,
+			path:    "/orders/{unknown_field}",
+			req:     &request{UserID: "user-123", OrderID: 456},
+			wantRsp: nil,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				require.Equal(t, tt.method, r.Method)
+				require.Equal(t, tt.wantPath, r.URL.RequestURI())
+				require.Equal(t, "application/json", r.Header.Get("Content-Type"))
+
+				buf, err := io.ReadAll(r.Body)
+				require.NoError(t, err)
+				defer func() {
+					require.NoError(t, r.Body.Close())
+				}()
+				require.Equal(t, tt.wantReqBody, buf)
+
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+
+				if tt.wantRsp != nil {
+					c := jsoncodec.NewCodec()
+					buf, err = c.Marshal(tt.wantRsp)
+					require.NoError(t, err)
+					_, err = w.Write(buf)
+					require.NoError(t, err)
+				}
+			}))
+			defer server.Close()
+
+			httpClient := httpcli.NewClient(
+				client.Codec("application/json", jsoncodec.NewCodec()),
+			)
+
+			rsp := &response{}
+			opts := []client.CallOption{
+				client.WithAddress(server.URL),
+				httpcli.Method(tt.method),
+				httpcli.Path(tt.path),
+			}
+
+			err := httpClient.Call(
+				context.Background(),
+				httpClient.NewRequest("test.service", "Test.Call", tt.req),
+				rsp,
+				opts...,
+			)
+
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.wantRsp, rsp)
+			}
+		})
+	}
 }
