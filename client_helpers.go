@@ -15,6 +15,7 @@ import (
 	"go.unistack.org/micro/v3/codec"
 	"go.unistack.org/micro/v3/logger"
 	"go.unistack.org/micro/v3/metadata"
+	rutil "go.unistack.org/micro/v3/util/reflect"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
@@ -34,16 +35,14 @@ func buildHTTPRequest(
 	*http.Request,
 	error,
 ) {
-	protoMsg, ok := msg.(proto.Message)
-	if !ok {
-		return nil, errors.New("msg must be a proto message type")
-	}
-
 	var (
 		method  = http.MethodPost
 		bodyOpt string
 
 		parameters = map[string]map[string]string{}
+
+		resolvedPath string
+		body         []byte
 	)
 
 	if opts.Context != nil {
@@ -78,14 +77,36 @@ func buildHTTPRequest(
 		}
 	}
 
-	reqBuilder, err := builder.NewRequestBuilder(path, method, bodyOpt, protoMsg)
-	if err != nil {
-		return nil, fmt.Errorf("new request builder: %w", err)
-	}
+	if protoMsg, ok := msg.(proto.Message); ok {
+		reqBuilder, err := builder.NewRequestBuilder(path, method, bodyOpt, protoMsg)
+		if err != nil {
+			return nil, fmt.Errorf("new request builder: %w", err)
+		}
 
-	resolvedPath, newMsg, err := reqBuilder.Build()
-	if err != nil {
-		return nil, fmt.Errorf("build request: %w", err)
+		rp, newMsg, err := reqBuilder.Build()
+		if err != nil {
+			return nil, fmt.Errorf("build request: %w", err)
+		}
+		resolvedPath = rp
+
+		b, err := marshallMsg(cf, newMsg)
+		if err != nil {
+			return nil, fmt.Errorf("marshal msg: %w", err)
+		}
+		body = b
+	} else {
+		var err error
+		resolvedPath, err = resolveStructPath(path, msg, structTagsFromContentType(ct))
+		if err != nil {
+			return nil, fmt.Errorf("resolve struct path: %w", err)
+		}
+		if msg != nil {
+			b, err := cf.Marshal(msg)
+			if err != nil {
+				return nil, fmt.Errorf("marshal msg: %w", err)
+			}
+			body = b
+		}
 	}
 
 	resolvedURL := joinURL(addr, resolvedPath)
@@ -95,16 +116,9 @@ func buildHTTPRequest(
 		return nil, fmt.Errorf("normalize url: %w", err)
 	}
 
-	body, err := marshallMsg(cf, newMsg)
-	if err != nil {
-		return nil, fmt.Errorf("marshal msg: %w", err)
-	}
-
 	var hreq *http.Request
-
 	if len(body) > 0 {
 		hreq, err = http.NewRequestWithContext(ctx, method, u.String(), io.NopCloser(bytes.NewBuffer(body)))
-		hreq.ContentLength = int64(len(body))
 	} else {
 		hreq, err = http.NewRequestWithContext(ctx, method, u.String(), nil)
 	}
@@ -199,7 +213,6 @@ func setHeadersAndCookies(ctx context.Context, r *http.Request, ct string, opts 
 	r.Header = make(http.Header)
 
 	r.Header.Set(metadata.HeaderContentType, ct)
-	r.Header.Set("Content-Length", fmt.Sprintf("%d", r.ContentLength))
 
 	if opts.AuthToken != "" {
 		r.Header.Set(metadata.HeaderAuthorization, opts.AuthToken)
@@ -271,6 +284,63 @@ func validateHeadersAndCookies(r *http.Request, parameters map[string]map[string
 	}
 
 	return nil
+}
+
+func structTagsFromContentType(ct string) []string {
+	ct = strings.ToLower(strings.Split(ct, ";")[0])
+	switch {
+	case strings.Contains(ct, "xml"):
+		return []string{"xml"}
+	case strings.Contains(ct, "yaml"):
+		return []string{"yaml"}
+	default:
+		return []string{"json", "protobuf"}
+	}
+}
+
+func resolveStructPath(path string, msg any, tags []string) (string, error) {
+	if !strings.Contains(path, "{") {
+		return path, nil
+	}
+	if msg == nil {
+		return path, nil
+	}
+
+	result := path
+	for start := strings.Index(result, "{"); start != -1; start = strings.Index(result, "{") {
+		end := strings.Index(result[start:], "}")
+		if end == -1 {
+			break
+		}
+		end += start
+		placeholder := result[start+1 : end]
+
+		// support nested paths: {user.id} → find "user" then "id" inside it
+		var fieldVal any
+		var err error
+		cur := msg
+		for _, part := range strings.Split(placeholder, ".") {
+			var found bool
+			for _, tag := range tags {
+				if _, fieldVal, err = rutil.StructFieldNameByTag(cur, tag, part); err == nil {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return "", fmt.Errorf("struct has no field for path placeholder %q", placeholder)
+			}
+			cur = fieldVal
+		}
+
+		if rutil.IsZero(fieldVal) {
+			return "", fmt.Errorf("path placeholder %q has zero value", placeholder)
+		}
+
+		result = result[:start] + fmt.Sprintf("%v", fieldVal) + result[end+1:]
+	}
+
+	return result, nil
 }
 
 func shouldLogBody(contentType string) bool {

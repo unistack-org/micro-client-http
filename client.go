@@ -116,7 +116,8 @@ func (c *Client) NewRequest(service, method string, req any, opts ...client.Requ
 
 func (c *Client) Call(ctx context.Context, req client.Request, rsp any, opts ...client.CallOption) error {
 	ts := time.Now()
-	c.opts.Meter.Counter(semconv.ClientRequestInflight, "endpoint", req.Endpoint()).Inc()
+	c.opts.Meter.Gauge(semconv.ClientRequestInflight, nil, "endpoint", req.Endpoint()).Inc()
+	defer c.opts.Meter.Gauge(semconv.ClientRequestInflight, nil, "endpoint", req.Endpoint()).Dec()
 
 	var sp tracer.Span
 	ctx, sp = c.opts.Tracer.Start(ctx, req.Endpoint()+" rpc-client",
@@ -127,7 +128,6 @@ func (c *Client) Call(ctx context.Context, req client.Request, rsp any, opts ...
 
 	err := c.funcCall(ctx, req, rsp, opts...)
 
-	c.opts.Meter.Counter(semconv.ClientRequestInflight, "endpoint", req.Endpoint()).Dec()
 	te := time.Since(ts)
 	c.opts.Meter.Summary(semconv.ClientRequestLatencyMicroseconds, "endpoint", req.Endpoint()).Update(te.Seconds())
 	c.opts.Meter.Histogram(semconv.ClientRequestDurationSeconds, "endpoint", req.Endpoint()).Update(te.Seconds())

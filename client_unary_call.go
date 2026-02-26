@@ -124,7 +124,7 @@ func (c *Client) fnCall(ctx context.Context, req client.Request, rsp any, opts .
 
 		select {
 		case <-ctx.Done():
-			return errors.New("go.micro.client", fmt.Sprintf("%v", ctx.Err()), 408)
+			return errors.New("go.micro.client", fmt.Sprintf("%v", ctx.Err()), http.StatusRequestTimeout)
 		case err := <-ch:
 			// if the call succeeded lets bail early
 			if err == nil {
@@ -178,7 +178,9 @@ func (c *Client) call(ctx context.Context, addr string, req client.Request, rsp 
 		return errors.InternalServerError("go.micro.client", "%+v", err)
 	}
 
-	defer hrsp.Body.Close()
+	defer func() {
+		_ = hrsp.Body.Close() // TODO need check?
+	}()
 
 	return c.parseRsp(ctx, hrsp, rsp, opts)
 }
