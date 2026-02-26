@@ -96,7 +96,7 @@ func buildHTTPRequest(
 		body = b
 	} else {
 		var err error
-		resolvedPath, err = resolveStructPath(path, msg)
+		resolvedPath, err = resolveStructPath(path, msg, structTagsFromContentType(ct))
 		if err != nil {
 			return nil, fmt.Errorf("resolve struct path: %w", err)
 		}
@@ -286,7 +286,19 @@ func validateHeadersAndCookies(r *http.Request, parameters map[string]map[string
 	return nil
 }
 
-func resolveStructPath(path string, msg any) (string, error) {
+func structTagsFromContentType(ct string) []string {
+	ct = strings.ToLower(strings.Split(ct, ";")[0])
+	switch {
+	case strings.Contains(ct, "xml"):
+		return []string{"xml"}
+	case strings.Contains(ct, "yaml"):
+		return []string{"yaml"}
+	default:
+		return []string{"json", "protobuf"}
+	}
+}
+
+func resolveStructPath(path string, msg any, tags []string) (string, error) {
 	if !strings.Contains(path, "{") {
 		return path, nil
 	}
@@ -303,14 +315,20 @@ func resolveStructPath(path string, msg any) (string, error) {
 		end += start
 		placeholder := result[start+1 : end]
 
-		// support nested paths: {user.id}
+		// support nested paths: {user.id} → find "user" then "id" inside it
 		var fieldVal any
+		var err error
 		cur := msg
 		for _, part := range strings.Split(placeholder, ".") {
-			var err error
-			_, fieldVal, err = rutil.StructFieldNameByTag(cur, "json", part)
-			if err != nil {
-				return "", fmt.Errorf("struct has no field for path placeholder %q: %w", placeholder, err)
+			var found bool
+			for _, tag := range tags {
+				if _, fieldVal, err = rutil.StructFieldNameByTag(cur, tag, part); err == nil {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return "", fmt.Errorf("struct has no field for path placeholder %q", placeholder)
 			}
 			cur = fieldVal
 		}
