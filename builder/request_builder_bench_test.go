@@ -9,7 +9,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	pb "go.unistack.org/micro-client-http/v4/builder/proto"
+	pb "go.unistack.org/micro-client-http/v5/builder/proto"
 )
 
 // sink prevents the compiler from optimizing away parsePathTemplate results.

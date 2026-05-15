@@ -10,14 +10,14 @@ import (
 	"strings"
 	"time"
 
-	"go.unistack.org/micro/v4/client"
-	"go.unistack.org/micro/v4/codec"
-	"go.unistack.org/micro/v4/errors"
-	"go.unistack.org/micro/v4/logger"
-	"go.unistack.org/micro/v4/metadata"
-	"go.unistack.org/micro/v4/selector"
+	"go.unistack.org/micro/v5/client"
+	"go.unistack.org/micro/v5/codec"
+	"go.unistack.org/micro/v5/errors"
+	"go.unistack.org/micro/v5/logger"
+	"go.unistack.org/micro/v5/metadata"
+	"go.unistack.org/micro/v5/selector"
 
-	"go.unistack.org/micro-client-http/v4/status"
+	"go.unistack.org/micro-client-http/v5/status"
 )
 
 func (c *Client) fnCall(ctx context.Context, req client.Request, rsp any, opts ...client.CallOption) error {

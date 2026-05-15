@@ -7,13 +7,13 @@ import (
 	"sync"
 	"time"
 
-	"go.unistack.org/micro/v4/client"
-	"go.unistack.org/micro/v4/errors"
-	"go.unistack.org/micro/v4/options"
-	"go.unistack.org/micro/v4/semconv"
-	"go.unistack.org/micro/v4/tracer"
+	"go.unistack.org/micro/v5/client"
+	"go.unistack.org/micro/v5/errors"
+	"go.unistack.org/micro/v5/options"
+	"go.unistack.org/micro/v5/semconv"
+	"go.unistack.org/micro/v5/tracer"
 
-	"go.unistack.org/micro-client-http/v4/status"
+	"go.unistack.org/micro-client-http/v5/status"
 )
 
 var _ client.Client = (*Client)(nil)

@@ -3,7 +3,7 @@ package http
 import (
 	"context"
 
-	"go.unistack.org/micro/v4/client"
+	"go.unistack.org/micro/v5/client"
 )
 
 // TODO: Add stream support in the future.

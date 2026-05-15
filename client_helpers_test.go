@@ -6,10 +6,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	jsoncodec "go.unistack.org/micro-codec-json/v4"
+	jsoncodec "go.unistack.org/micro-codec-json/v5"
 	"google.golang.org/protobuf/proto"
 
-	pb "go.unistack.org/micro-client-http/v4/builder/proto"
+	pb "go.unistack.org/micro-client-http/v5/builder/proto"
 )
 
 func TestJoinURL(t *testing.T) {

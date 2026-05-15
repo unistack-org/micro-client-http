@@ -11,14 +11,14 @@ import (
 	"strings"
 	"time"
 
-	"go.unistack.org/micro/v4/client"
-	"go.unistack.org/micro/v4/codec"
-	"go.unistack.org/micro/v4/logger"
-	"go.unistack.org/micro/v4/metadata"
+	"go.unistack.org/micro/v5/client"
+	"go.unistack.org/micro/v5/codec"
+	"go.unistack.org/micro/v5/logger"
+	"go.unistack.org/micro/v5/metadata"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
-	"go.unistack.org/micro-client-http/v4/builder"
+	"go.unistack.org/micro-client-http/v5/builder"
 )
 
 func buildHTTPRequest(

@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
-	"go.unistack.org/micro-client-http/v4/builder"
-	pb "go.unistack.org/micro-client-http/v4/builder/proto"
+	"go.unistack.org/micro-client-http/v5/builder"
+	pb "go.unistack.org/micro-client-http/v5/builder/proto"
 )
 
 func TestNewRequestBuilder(t *testing.T) {

@@ -3745,7 +3745,7 @@ const file_test_messages_proto_rawDesc = "" +
 	"\fSpecialError\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x10\n" +
 	"\x03msg\x18\x02 \x01(\tR\x03msg\x12\x18\n" +
-	"\awarning\x18\x03 \x01(\tR\awarningB2Z0go.unistack.org/micro-client-http/v4/proto;protob\x06proto3"
+	"\awarning\x18\x03 \x01(\tR\awarningB2Z0go.unistack.org/micro-client-http/v5/proto;protob\x06proto3"
 
 var (
 	file_test_messages_proto_rawDescOnce sync.Once

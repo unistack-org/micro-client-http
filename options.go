@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"go.unistack.org/micro/v4/client"
+	"go.unistack.org/micro/v5/client"
 )
 
 // --------------------------------------------- HTTPClient option -----------------------------------------------------

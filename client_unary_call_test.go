@@ -9,15 +9,15 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	jsoncodec "go.unistack.org/micro-codec-json/v4"
-	"go.unistack.org/micro/v4/client"
-	microerr "go.unistack.org/micro/v4/errors"
-	"go.unistack.org/micro/v4/metadata"
+	jsoncodec "go.unistack.org/micro-codec-json/v5"
+	"go.unistack.org/micro/v5/client"
+	microerr "go.unistack.org/micro/v5/errors"
+	"go.unistack.org/micro/v5/metadata"
 	"google.golang.org/protobuf/proto"
 
-	httpcli "go.unistack.org/micro-client-http/v4"
-	pb "go.unistack.org/micro-client-http/v4/builder/proto"
-	"go.unistack.org/micro-client-http/v4/status"
+	httpcli "go.unistack.org/micro-client-http/v5"
+	pb "go.unistack.org/micro-client-http/v5/builder/proto"
+	"go.unistack.org/micro-client-http/v5/status"
 )
 
 func TestClient_Call_Get(t *testing.T) {

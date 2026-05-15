@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"go.unistack.org/micro-client-http/v4/status"
+	"go.unistack.org/micro-client-http/v5/status"
 )
 
 type fakeError struct{ s *status.Status }
