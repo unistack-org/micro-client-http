@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package proto;
 
-option go_package = "go.unistack.org/micro-client-http/v4/proto;proto";
+option go_package = "go.unistack.org/micro-client-http/v5/proto;proto";
 
 message TestRequestBuilder {}
 
