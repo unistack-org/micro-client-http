@@ -4,7 +4,7 @@ go 1.26
 
 require (
 	github.com/stretchr/testify v1.12.1
-	go.unistack.org/micro/v5 v5.0.1
+	go.unistack.org/micro/v5 v5.0.4
 	google.golang.org/protobuf v1.36.11
 )
 
